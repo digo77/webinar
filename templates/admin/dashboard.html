@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Admin - Dashboard{% endblock %}
+{% block body %}
+<div class="max-w-6xl mx-auto p-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <h1 class="text-2xl font-bold">AutoWebinar Admin</h1>
+        <div class="flex gap-3">
+            <a href="{{ url_for('admin.timeline') }}" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition">Timeline</a>
+            <a href="{{ url_for('admin.logout') }}" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition">Sair</a>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-gray-900 rounded-xl p-6">
+            <p class="text-gray-400 text-sm mb-1">Total registrados</p>
+            <p class="text-3xl font-bold">{{ stats.total }}</p>
+        </div>
+        <div class="bg-gray-900 rounded-xl p-6">
+            <p class="text-gray-400 text-sm mb-1">Assistiram</p>
+            <p class="text-3xl font-bold text-green-400">{{ stats.attended }}</p>
+        </div>
+        <div class="bg-gray-900 rounded-xl p-6">
+            <p class="text-gray-400 text-sm mb-1">Clicaram no CTA</p>
+            <p class="text-3xl font-bold text-yellow-400">{{ stats.clicked_cta }}</p>
+        </div>
+    </div>
+
+    <!-- Config do Webinario -->
+    <div class="bg-gray-900 rounded-xl p-6 mb-8">
+        <h2 class="text-lg font-semibold mb-4">Configuracao do Webinario</h2>
+        <form method="POST" action="{{ url_for('admin.save_config') }}" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="text-sm text-gray-400">Nome</label>
+                <input type="text" name="name" value="{{ config.name if config else '' }}"
+                       class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="text-sm text-gray-400">VTurb Video ID</label>
+                <input type="text" name="vturb_video_id" value="{{ config.vturb_video_id if config else '' }}"
+                       class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="text-sm text-gray-400">Numero base participantes</label>
+                <input type="number" name="attendee_count_base" value="{{ config.attendee_count_base if config else 47 }}"
+                       class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="text-sm text-gray-400">URL do Upsell</label>
+                <input type="text" name="upsell_url" value="{{ config.upsell_url if config else '' }}"
+                       class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+            </div>
+            <div>
+                <label class="text-sm text-gray-400">Texto do botao CTA</label>
+                <input type="text" name="upsell_cta_text" value="{{ config.upsell_cta_text if config else '' }}"
+                       class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+            </div>
+            <div class="flex items-end">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition">
+                    Salvar
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Lista de Registrants -->
+    <div class="bg-gray-900 rounded-xl p-6">
+        <h2 class="text-lg font-semibold mb-4">Registrados</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-gray-400 text-left border-b border-gray-800">
+                        <th class="pb-3 pr-4">Nome</th>
+                        <th class="pb-3 pr-4">Email</th>
+                        <th class="pb-3 pr-4">Data Webinario</th>
+                        <th class="pb-3 pr-4">Assistiu</th>
+                        <th class="pb-3 pr-4">Tempo (min)</th>
+                        <th class="pb-3">CTA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in registrants %}
+                    <tr class="border-b border-gray-800/50">
+                        <td class="py-3 pr-4">{{ r.name }}</td>
+                        <td class="py-3 pr-4 text-gray-400">{{ r.email }}</td>
+                        <td class="py-3 pr-4 text-gray-400">{{ r.webinar_date.strftime('%d/%m/%Y %H:%M') if r.webinar_date else '-' }}</td>
+                        <td class="py-3 pr-4">
+                            {% if r.attended %}
+                            <span class="text-green-400">Sim</span>
+                            {% else %}
+                            <span class="text-gray-600">Nao</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 pr-4 text-gray-400">{{ (r.watch_time_seconds / 60)|round(1) }}</td>
+                        <td class="py-3">
+                            {% if r.clicked_cta %}
+                            <span class="text-yellow-400">Sim</span>
+                            {% else %}
+                            <span class="text-gray-600">Nao</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Webinario ao Vivo - Chef Aureo{% endblock %}
+
+{% block head %}
+<style>
+    .chat-box { scrollbar-width: thin; scrollbar-color: #374151 #111827; }
+    .chat-msg { animation: fadeInUp 0.3s ease-out; }
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .cta-popup { animation: scaleIn 0.4s ease-out; }
+    @keyframes scaleIn {
+        from { opacity: 0; transform: scale(0.9); }
+        to { opacity: 1; transform: scale(1); }
+    }
+    .pulse-dot {
+        animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+{% if error %}
+<!-- ERRO -->
+<div class="flex items-center justify-center min-h-screen">
+    <div class="bg-gray-900 rounded-2xl p-8 max-w-md text-center">
+        <div class="text-red-400 text-5xl mb-4">&#9888;</div>
+        <h1 class="text-xl font-bold mb-2">Acesso negado</h1>
+        <p class="text-gray-400">{{ error }}</p>
+    </div>
+</div>
+
+{% elif waiting %}
+<!-- AGUARDE - COUNTDOWN -->
+<div class="flex items-center justify-center min-h-screen">
+    <div class="bg-gray-900 rounded-2xl p-8 max-w-lg text-center">
+        <h1 class="text-2xl font-bold mb-2">Oi, {{ name.split()[0] if name else 'participante' }}!</h1>
+        <p class="text-gray-400 mb-6">O webinario ainda nao comecou. Fique atento ao horario:</p>
+        <div id="countdown" class="text-4xl font-mono font-bold text-yellow-400 mb-4">--:--:--</div>
+        <p class="text-gray-500 text-sm">Volte nesta pagina na terca-feira as 19h (horario de Brasilia)</p>
+    </div>
+</div>
+<script>
+    const webinarDate = new Date("{{ webinar_date }}");
+    function updateCountdown() {
+        const now = new Date();
+        const diff = webinarDate - now;
+        if (diff <= 0) {
+            location.reload();
+            return;
+        }
+        const d = Math.floor(diff / 86400000);
+        const h = Math.floor((diff % 86400000) / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        let txt = '';
+        if (d > 0) txt += d + 'd ';
+        txt += String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+        document.getElementById('countdown').textContent = txt;
+    }
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+</script>
+
+{% else %}
+<!-- SALA DO WEBINARIO -->
+<div class="max-w-6xl mx-auto p-4">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-3">
+            <div class="w-2 h-2 bg-red-500 rounded-full pulse-dot"></div>
+            <span class="text-red-400 font-semibold text-sm uppercase tracking-wide">Ao Vivo</span>
+        </div>
+        <div class="flex items-center gap-2 text-gray-400 text-sm">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/>
+            </svg>
+            <span id="viewer-count">{{ config.attendee_count_base if config else 47 }}</span> assistindo
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- Video -->
+        <div class="lg:col-span-2">
+            <div class="bg-black rounded-xl overflow-hidden aspect-video relative">
+                {% if config and config.vturb_video_id %}
+                <iframe id="vturb-player"
+                        src="https://scripts.converteai.net/{{ config.vturb_video_id }}/players/{{ config.vturb_video_id }}/embed.html"
+                        style="width:100%;height:100%;border:none;"
+                        allow="autoplay; fullscreen"
+                        allowfullscreen>
+                </iframe>
+                {% else %}
+                <div class="flex items-center justify-center h-full text-gray-500">
+                    <p>Video nao configurado</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- CTA Popup Area -->
+            <div id="cta-area" class="mt-4 hidden">
+                <div class="cta-popup bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl p-6 text-center">
+                    <h3 id="cta-title" class="text-xl font-bold text-gray-900 mb-2"></h3>
+                    <div id="cta-countdown" class="text-3xl font-mono font-bold text-gray-900 mb-4"></div>
+                    <a id="cta-button" href="#" target="_blank"
+                       class="inline-block bg-gray-900 text-white font-bold py-3 px-8 rounded-lg text-lg hover:bg-gray-800 transition">
+                        {{ config.upsell_cta_text if config else 'Quero aproveitar!' }}
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat -->
+        <div class="bg-gray-900 rounded-xl flex flex-col h-[500px] lg:h-auto">
+            <div class="px-4 py-3 border-b border-gray-800">
+                <h3 class="font-semibold text-sm">Chat ao vivo</h3>
+            </div>
+            <div id="chat-box" class="flex-1 overflow-y-auto p-4 space-y-3 chat-box">
+                <!-- Mensagens inseridas via JS -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dados para o JS -->
+<script>
+    window.WEBINAR_TOKEN = "{{ registrant.token }}";
+    window.WEBINAR_CONFIG = {
+        attendeeBase: {{ config.attendee_count_base if config else 47 }},
+        upsellUrl: "{{ config.upsell_url if config else '' }}",
+        ctaText: "{{ config.upsell_cta_text if config else '' }}"
+    };
+</script>
+<script src="/static/webinar-engine.js"></script>
+{% endif %}
+{% endblock %}

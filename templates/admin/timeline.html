@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Admin - Timeline de Eventos{% endblock %}
+{% block body %}
+<div class="max-w-4xl mx-auto p-6">
+    <div class="flex items-center justify-between mb-8">
+        <h1 class="text-2xl font-bold">Timeline de Eventos</h1>
+        <a href="{{ url_for('admin.dashboard') }}" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition">Voltar</a>
+    </div>
+
+    {% if not config %}
+    <div class="bg-gray-900 rounded-xl p-6 text-center text-gray-400">
+        Configure um webinario ativo primeiro no Dashboard.
+    </div>
+    {% else %}
+
+    <!-- Adicionar Evento -->
+    <div class="bg-gray-900 rounded-xl p-6 mb-8">
+        <h2 class="text-lg font-semibold mb-4">Adicionar Evento</h2>
+        <form method="POST" action="{{ url_for('admin.timeline_add') }}" id="event-form">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="text-sm text-gray-400">Tipo</label>
+                    <select name="event_type" id="event-type"
+                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500"
+                            onchange="toggleFields()">
+                        <option value="chat">Chat</option>
+                        <option value="cta_popup">CTA Popup</option>
+                        <option value="poll">Poll</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Segundo do video</label>
+                    <input type="number" name="trigger_second" min="0" required
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+
+            <!-- Campos Chat -->
+            <div id="fields-chat" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="text-sm text-gray-400">Autor</label>
+                    <input type="text" name="author"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Mensagem</label>
+                    <input type="text" name="message"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+
+            <!-- Campos CTA -->
+            <div id="fields-cta" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 hidden">
+                <div>
+                    <label class="text-sm text-gray-400">Titulo</label>
+                    <input type="text" name="title"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Countdown (minutos)</label>
+                    <input type="number" name="countdown_minutes" value="15"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">URL</label>
+                    <input type="text" name="url"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+
+            <!-- Campos Poll -->
+            <div id="fields-poll" class="mb-4 hidden">
+                <div>
+                    <label class="text-sm text-gray-400">Payload JSON</label>
+                    <textarea name="payload" rows="3"
+                              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500 font-mono text-sm"></textarea>
+                </div>
+            </div>
+
+            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition">
+                Adicionar
+            </button>
+        </form>
+    </div>
+
+    <!-- Lista de Eventos -->
+    <div class="bg-gray-900 rounded-xl p-6">
+        <h2 class="text-lg font-semibold mb-4">Eventos ({{ events|length }})</h2>
+        {% if events %}
+        <div class="space-y-3">
+            {% for e in events %}
+            <div class="flex items-center justify-between bg-gray-800/50 rounded-lg px-4 py-3">
+                <div class="flex items-center gap-4">
+                    <span class="text-xs font-mono bg-gray-700 px-2 py-1 rounded">{{ e.trigger_second }}s</span>
+                    <span class="text-xs font-semibold uppercase
+                        {% if e.event_type == 'chat' %}text-blue-400
+                        {% elif e.event_type == 'cta_popup' %}text-yellow-400
+                        {% else %}text-purple-400{% endif %}">{{ e.event_type }}</span>
+                    <span class="text-sm text-gray-300">{{ e.payload[:80] }}{% if e.payload|length > 80 %}...{% endif %}</span>
+                </div>
+                <form method="POST" action="{{ url_for('admin.timeline_delete', event_id=e.id) }}" class="inline">
+                    <button type="submit" class="text-red-400 hover:text-red-300 text-sm" onclick="return confirm('Excluir?')">Excluir</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-center">Nenhum evento cadastrado.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function toggleFields() {
+    const type = document.getElementById('event-type').value;
+    document.getElementById('fields-chat').classList.toggle('hidden', type !== 'chat');
+    document.getElementById('fields-cta').classList.toggle('hidden', type !== 'cta_popup');
+    document.getElementById('fields-poll').classList.toggle('hidden', type !== 'poll');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Admin - Login{% endblock %}
+{% block body %}
+<div class="flex items-center justify-center min-h-screen">
+    <div class="bg-gray-900 rounded-2xl p-8 w-full max-w-sm">
+        <h1 class="text-xl font-bold mb-6 text-center">Admin AutoWebinar</h1>
+        {% if error %}
+        <p class="text-red-400 text-sm mb-4 text-center">{{ error }}</p>
+        {% endif %}
+        <form method="POST">
+            <input type="password" name="password" placeholder="Senha"
+                   class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 mb-4 text-white focus:outline-none focus:border-blue-500">
+            <button type="submit"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition">
+                Entrar
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
