@@ -3,6 +3,33 @@ from config import Config
 from models import db
 
 
+def migrate_db(app):
+    """Adiciona colunas novas sem perder dados existentes."""
+    with app.app_context():
+        from sqlalchemy import text, inspect
+        inspector = inspect(db.engine)
+
+        # Colunas para adicionar em webinar_config
+        wc_cols = {c['name'] for c in inspector.get_columns('webinar_config')}
+        wc_new = {
+            'day_of_week': 'INTEGER DEFAULT 1',
+            'start_hour': 'INTEGER DEFAULT 19',
+            'start_minute': 'INTEGER DEFAULT 0',
+            'client_name': 'TEXT',
+            'webhook_token': 'TEXT',
+        }
+        for col, typedef in wc_new.items():
+            if col not in wc_cols:
+                db.session.execute(text(f'ALTER TABLE webinar_config ADD COLUMN {col} {typedef}'))
+
+        # Colunas para adicionar em registrants
+        r_cols = {c['name'] for c in inspector.get_columns('registrants')}
+        if 'webinar_id' not in r_cols:
+            db.session.execute(text('ALTER TABLE registrants ADD COLUMN webinar_id INTEGER'))
+
+        db.session.commit()
+
+
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
@@ -19,9 +46,14 @@ def create_app():
     app.register_blueprint(sala_bp)
     app.register_blueprint(admin_bp)
 
-    # Create tables
+    # Create tables (novas) + migrate colunas existentes
     with app.app_context():
         db.create_all()
+
+    try:
+        migrate_db(app)
+    except Exception as e:
+        app.logger.info(f'Migration ok ou ja aplicada: {e}')
 
     return app
 

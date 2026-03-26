@@ -5,13 +5,10 @@
     <!-- Header -->
     <div class="flex items-center justify-between mb-8">
         <h1 class="text-2xl font-bold">AutoWebinar Admin</h1>
-        <div class="flex gap-3">
-            <a href="{{ url_for('admin.timeline') }}" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition">Timeline</a>
-            <a href="{{ url_for('admin.logout') }}" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition">Sair</a>
-        </div>
+        <a href="{{ url_for('admin.logout') }}" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition">Sair</a>
     </div>
 
-    <!-- Stats -->
+    <!-- Stats Globais -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div class="bg-gray-900 rounded-xl p-6">
             <p class="text-gray-400 text-sm mb-1">Total registrados</p>
@@ -27,84 +24,118 @@
         </div>
     </div>
 
-    <!-- Config do Webinario -->
+    <!-- Criar Novo Webinario -->
     <div class="bg-gray-900 rounded-xl p-6 mb-8">
-        <h2 class="text-lg font-semibold mb-4">Configuracao do Webinario</h2>
-        <form method="POST" action="{{ url_for('admin.save_config') }}" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <label class="text-sm text-gray-400">Nome</label>
-                <input type="text" name="name" value="{{ config.name if config else '' }}"
-                       class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+        <h2 class="text-lg font-semibold mb-4">Criar Novo Webinario</h2>
+        <form method="POST" action="{{ url_for('admin.webinar_create') }}">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="text-sm text-gray-400">Nome do Webinario</label>
+                    <input type="text" name="name" required placeholder="Ex: Cookie Sandwich Upsell"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Cliente</label>
+                    <input type="text" name="client_name" required placeholder="Ex: Chef Aureo"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">VTurb Video ID</label>
+                    <input type="text" name="vturb_video_id" placeholder="vid-xxx"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
             </div>
-            <div>
-                <label class="text-sm text-gray-400">VTurb Video ID</label>
-                <input type="text" name="vturb_video_id" value="{{ config.vturb_video_id if config else '' }}"
-                       class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                    <label class="text-sm text-gray-400">Dia da semana</label>
+                    <select name="day_of_week"
+                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                        {% for i in range(7) %}
+                        <option value="{{ i }}" {% if i == 1 %}selected{% endif %}>{{ day_names[i] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Hora inicio</label>
+                    <input type="number" name="start_hour" value="19" min="0" max="23"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Minuto inicio</label>
+                    <input type="number" name="start_minute" value="0" min="0" max="59"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Base viewers</label>
+                    <input type="number" name="attendee_count_base" value="47"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
             </div>
-            <div>
-                <label class="text-sm text-gray-400">Numero base participantes</label>
-                <input type="number" name="attendee_count_base" value="{{ config.attendee_count_base if config else 47 }}"
-                       class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="text-sm text-gray-400">URL do Upsell</label>
+                    <input type="text" name="upsell_url" placeholder="https://..."
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Texto do botao CTA</label>
+                    <input type="text" name="upsell_cta_text" placeholder="Quero aproveitar!"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
             </div>
-            <div>
-                <label class="text-sm text-gray-400">URL do Upsell</label>
-                <input type="text" name="upsell_url" value="{{ config.upsell_url if config else '' }}"
-                       class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
-            </div>
-            <div>
-                <label class="text-sm text-gray-400">Texto do botao CTA</label>
-                <input type="text" name="upsell_cta_text" value="{{ config.upsell_cta_text if config else '' }}"
-                       class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
-            </div>
-            <div class="flex items-end">
+            <div class="flex items-center gap-4">
+                <label class="flex items-center gap-2 text-sm text-gray-400">
+                    <input type="checkbox" name="is_active" value="1" checked
+                           class="rounded bg-gray-800 border-gray-700">
+                    Ativo
+                </label>
                 <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition">
-                    Salvar
+                    Criar Webinario
                 </button>
             </div>
         </form>
     </div>
 
-    <!-- Lista de Registrants -->
+    <!-- Lista de Webinarios -->
     <div class="bg-gray-900 rounded-xl p-6">
-        <h2 class="text-lg font-semibold mb-4">Registrados</h2>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead>
-                    <tr class="text-gray-400 text-left border-b border-gray-800">
-                        <th class="pb-3 pr-4">Nome</th>
-                        <th class="pb-3 pr-4">Email</th>
-                        <th class="pb-3 pr-4">Data Webinario</th>
-                        <th class="pb-3 pr-4">Assistiu</th>
-                        <th class="pb-3 pr-4">Tempo (min)</th>
-                        <th class="pb-3">CTA</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for r in registrants %}
-                    <tr class="border-b border-gray-800/50">
-                        <td class="py-3 pr-4">{{ r.name }}</td>
-                        <td class="py-3 pr-4 text-gray-400">{{ r.email }}</td>
-                        <td class="py-3 pr-4 text-gray-400">{{ r.webinar_date.strftime('%d/%m/%Y %H:%M') if r.webinar_date else '-' }}</td>
-                        <td class="py-3 pr-4">
-                            {% if r.attended %}
-                            <span class="text-green-400">Sim</span>
-                            {% else %}
-                            <span class="text-gray-600">Nao</span>
-                            {% endif %}
-                        </td>
-                        <td class="py-3 pr-4 text-gray-400">{{ (r.watch_time_seconds / 60)|round(1) }}</td>
-                        <td class="py-3">
-                            {% if r.clicked_cta %}
-                            <span class="text-yellow-400">Sim</span>
-                            {% else %}
-                            <span class="text-gray-600">Nao</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <h2 class="text-lg font-semibold mb-4">Webinarios ({{ webinars|length }})</h2>
+        {% if webinars %}
+        <div class="space-y-3">
+            {% for w in webinars %}
+            <div class="bg-gray-800/50 rounded-lg px-5 py-4">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-3">
+                        {% if w.is_active %}
+                        <span class="w-2 h-2 bg-green-400 rounded-full"></span>
+                        {% else %}
+                        <span class="w-2 h-2 bg-gray-600 rounded-full"></span>
+                        {% endif %}
+                        <a href="{{ url_for('admin.webinar_detail', webinar_id=w.id) }}"
+                           class="font-semibold hover:text-blue-400 transition">{{ w.name or 'Sem nome' }}</a>
+                        <span class="text-xs text-gray-500">{{ w.client_name }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <a href="{{ url_for('admin.webinar_detail', webinar_id=w.id) }}"
+                           class="text-blue-400 hover:text-blue-300 text-sm">Editar</a>
+                        <form method="POST" action="{{ url_for('admin.webinar_delete', webinar_id=w.id) }}" class="inline">
+                            <button type="submit" class="text-red-400 hover:text-red-300 text-sm"
+                                    onclick="return confirm('Excluir webinario e todos os dados?')">Excluir</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="flex items-center gap-6 text-xs text-gray-400">
+                    <span>{{ w.day_name }} {{ '%02d'|format(w.start_hour or 19) }}:{{ '%02d'|format(w.start_minute or 0) }}</span>
+                    <span>{{ w.stats.total }} registrados</span>
+                    <span class="text-green-400">{{ w.stats.attended }} assistiram</span>
+                    <span class="text-yellow-400">{{ w.stats.clicked_cta }} CTA</span>
+                    <span class="text-gray-600 font-mono text-xs">webhook: {{ w.webhook_token[:12] }}...</span>
+                </div>
+            </div>
+            {% endfor %}
         </div>
+        {% else %}
+        <p class="text-gray-500 text-center">Nenhum webinario cadastrado. Crie o primeiro acima.</p>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

@@ -2,7 +2,7 @@ import json
 from flask import Blueprint, request, render_template, jsonify
 from models import db, Registrant, WebinarConfig, TimelineEvent
 from services.token_service import validate_token
-from services.scheduler import is_webinar_open, get_next_tuesday_19h, BRT
+from services.scheduler import is_webinar_open, BRT
 from datetime import datetime
 
 sala_bp = Blueprint('sala', __name__)
@@ -27,7 +27,6 @@ def sala():
     if not is_webinar_open(registrant.webinar_date):
         next_date = registrant.webinar_date
         if next_date.tzinfo is None:
-            from services.scheduler import BRT
             next_date = BRT.localize(next_date)
         return render_template('sala.html',
                                waiting=True,
@@ -39,8 +38,12 @@ def sala():
         registrant.attended = True
         db.session.commit()
 
-    # Busca config do webinario ativo
-    config = WebinarConfig.query.filter_by(is_active=True).first()
+    # Busca config do webinario associado ao registrant
+    config = None
+    if registrant.webinar_id:
+        config = WebinarConfig.query.get(registrant.webinar_id)
+    if not config:
+        config = WebinarConfig.query.filter_by(is_active=True).first()
 
     return render_template('sala.html',
                            registrant=registrant,
@@ -51,8 +54,13 @@ def sala():
 
 @sala_bp.route('/api/events')
 def api_events():
-    """Retorna timeline_events do webinario ativo para o JS."""
-    config = WebinarConfig.query.filter_by(is_active=True).first()
+    """Retorna timeline_events do webinario. Aceita ?webinar_id= ou usa o ativo."""
+    webinar_id = request.args.get('webinar_id')
+    if webinar_id:
+        config = WebinarConfig.query.get(int(webinar_id))
+    else:
+        config = WebinarConfig.query.filter_by(is_active=True).first()
+
     if not config:
         return jsonify([])
 
@@ -79,6 +87,10 @@ def track():
         return jsonify({'error': 'no data'}), 400
 
     token = data.get('token', '')
+    payload = validate_token(token)
+    if not payload:
+        return jsonify({'error': 'invalid token'}), 401
+
     registrant = Registrant.query.filter_by(email=payload.get("sub")).first()
     if not registrant:
         return jsonify({'error': 'not found'}), 404

@@ -3,31 +3,47 @@ import pytz
 
 BRT = pytz.timezone('America/Sao_Paulo')
 
+DAY_NAMES = ['Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado', 'Domingo']
 
-def get_next_tuesday_19h(from_dt=None):
-    """Calcula a proxima terca-feira as 19h BRT a partir de uma data."""
+
+def get_next_webinar_date(day_of_week=1, start_hour=19, start_minute=0, from_dt=None):
+    """Calcula a proxima data do webinario baseado no dia da semana e horario.
+
+    Args:
+        day_of_week: 0=segunda, 1=terca, ..., 6=domingo
+        start_hour: hora de inicio (0-23)
+        start_minute: minuto de inicio (0-59)
+        from_dt: datetime de referencia (default: agora BRT)
+    """
     if from_dt is None:
         from_dt = datetime.now(BRT)
     elif from_dt.tzinfo is None:
         from_dt = BRT.localize(from_dt)
 
-    # Dia da semana: 0=segunda, 1=terca
-    days_ahead = 1 - from_dt.weekday()  # 1 = terca
-    if days_ahead <= 0:
-        # Se ja passou terca (ou e terca mas ja passou 19h), pula pra proxima
-        if days_ahead < 0 or (days_ahead == 0 and from_dt.hour >= 19):
+    days_ahead = day_of_week - from_dt.weekday()
+    if days_ahead < 0:
+        days_ahead += 7
+    elif days_ahead == 0:
+        # Mesmo dia: se ja passou o horario, pula pra proxima semana
+        start_time = from_dt.replace(hour=start_hour, minute=start_minute, second=0, microsecond=0)
+        if from_dt >= start_time:
             days_ahead += 7
 
-    next_tuesday = from_dt + timedelta(days=days_ahead)
-    next_tuesday_19h = next_tuesday.replace(hour=19, minute=0, second=0, microsecond=0)
+    next_date = from_dt + timedelta(days=days_ahead)
+    next_date = next_date.replace(hour=start_hour, minute=start_minute, second=0, microsecond=0)
 
-    return next_tuesday_19h
+    return next_date
+
+
+# Alias retrocompativel
+def get_next_tuesday_19h(from_dt=None):
+    return get_next_webinar_date(day_of_week=1, start_hour=19, start_minute=0, from_dt=from_dt)
 
 
 def is_webinar_open(webinar_date):
     """Verifica se o horario atual esta na janela do webinario.
 
-    Janela: 15 min antes das 19h ate meia-noite do mesmo dia.
+    Janela: 15 min antes do horario ate meia-noite do mesmo dia.
     """
     now = datetime.now(BRT)
 

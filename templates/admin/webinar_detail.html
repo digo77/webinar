@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% block title %}Admin - {{ webinar.name }}{% endblock %}
+{% block body %}
+<div class="max-w-6xl mx-auto p-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <a href="{{ url_for('admin.dashboard') }}" class="text-gray-400 hover:text-white text-sm">&larr; Voltar</a>
+            <h1 class="text-2xl font-bold mt-1">{{ webinar.name or 'Sem nome' }}</h1>
+            <p class="text-gray-400 text-sm">Cliente: {{ webinar.client_name or '-' }}</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{{ url_for('admin.test_token', webinar_id=webinar.id) }}" target="_blank"
+               class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-sm transition">Testar Sala</a>
+            <a href="{{ url_for('admin.logout') }}" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition">Sair</a>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-gray-900 rounded-xl p-6">
+            <p class="text-gray-400 text-sm mb-1">Registrados</p>
+            <p class="text-3xl font-bold">{{ stats.total }}</p>
+        </div>
+        <div class="bg-gray-900 rounded-xl p-6">
+            <p class="text-gray-400 text-sm mb-1">Assistiram</p>
+            <p class="text-3xl font-bold text-green-400">{{ stats.attended }}</p>
+        </div>
+        <div class="bg-gray-900 rounded-xl p-6">
+            <p class="text-gray-400 text-sm mb-1">Clicaram no CTA</p>
+            <p class="text-3xl font-bold text-yellow-400">{{ stats.clicked_cta }}</p>
+        </div>
+    </div>
+
+    <!-- Webhook Info -->
+    <div class="bg-gray-900 rounded-xl p-4 mb-8 flex items-center justify-between">
+        <div>
+            <span class="text-gray-400 text-sm">URL do Webhook Hotmart:</span>
+            <code class="ml-2 text-green-400 text-sm bg-gray-800 px-3 py-1 rounded">/webhook/hotmart/{{ webinar.webhook_token }}</code>
+        </div>
+        <button onclick="navigator.clipboard.writeText(location.origin + '/webhook/hotmart/{{ webinar.webhook_token }}')"
+                class="text-blue-400 hover:text-blue-300 text-sm">Copiar</button>
+    </div>
+
+    <!-- Editar Configuracao -->
+    <div class="bg-gray-900 rounded-xl p-6 mb-8">
+        <h2 class="text-lg font-semibold mb-4">Configuracao</h2>
+        <form method="POST" action="{{ url_for('admin.webinar_edit', webinar_id=webinar.id) }}">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="text-sm text-gray-400">Nome do Webinario</label>
+                    <input type="text" name="name" value="{{ webinar.name or '' }}"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Cliente</label>
+                    <input type="text" name="client_name" value="{{ webinar.client_name or '' }}"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">VTurb Video ID</label>
+                    <input type="text" name="vturb_video_id" value="{{ webinar.vturb_video_id or '' }}"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                    <label class="text-sm text-gray-400">Dia da semana</label>
+                    <select name="day_of_week"
+                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                        {% for i in range(7) %}
+                        <option value="{{ i }}" {% if i == (webinar.day_of_week or 1) %}selected{% endif %}>{{ day_names[i] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Hora inicio</label>
+                    <input type="number" name="start_hour" value="{{ webinar.start_hour or 19 }}" min="0" max="23"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Minuto inicio</label>
+                    <input type="number" name="start_minute" value="{{ webinar.start_minute or 0 }}" min="0" max="59"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Base viewers</label>
+                    <input type="number" name="attendee_count_base" value="{{ webinar.attendee_count_base or 47 }}"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="text-sm text-gray-400">URL do Upsell</label>
+                    <input type="text" name="upsell_url" value="{{ webinar.upsell_url or '' }}"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Texto do botao CTA</label>
+                    <input type="text" name="upsell_cta_text" value="{{ webinar.upsell_cta_text or '' }}"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <label class="flex items-center gap-2 text-sm text-gray-400">
+                    <input type="checkbox" name="is_active" value="1" {% if webinar.is_active %}checked{% endif %}
+                           class="rounded bg-gray-800 border-gray-700">
+                    Ativo
+                </label>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition">
+                    Salvar
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Timeline de Eventos -->
+    <div class="bg-gray-900 rounded-xl p-6 mb-8">
+        <h2 class="text-lg font-semibold mb-4">Timeline de Eventos ({{ events|length }})</h2>
+
+        <!-- Adicionar Evento -->
+        <form method="POST" action="{{ url_for('admin.timeline_add', webinar_id=webinar.id) }}" class="mb-6 p-4 bg-gray-800/50 rounded-lg">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="text-sm text-gray-400">Tipo</label>
+                    <select name="event_type" id="event-type"
+                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500"
+                            onchange="toggleFields()">
+                        <option value="chat">Chat</option>
+                        <option value="cta_popup">CTA Popup</option>
+                        <option value="poll">Poll</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Segundo do video</label>
+                    <input type="number" name="trigger_second" min="0" required
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div class="flex items-end">
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition">
+                        Adicionar
+                    </button>
+                </div>
+            </div>
+
+            <!-- Campos Chat -->
+            <div id="fields-chat" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="text-sm text-gray-400">Autor</label>
+                    <input type="text" name="author"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Mensagem</label>
+                    <input type="text" name="message"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+
+            <!-- Campos CTA -->
+            <div id="fields-cta" class="grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
+                <div>
+                    <label class="text-sm text-gray-400">Titulo</label>
+                    <input type="text" name="title"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Countdown (minutos)</label>
+                    <input type="number" name="countdown_minutes" value="15"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">URL</label>
+                    <input type="text" name="url"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+
+            <!-- Campos Poll -->
+            <div id="fields-poll" class="hidden">
+                <div>
+                    <label class="text-sm text-gray-400">Payload JSON</label>
+                    <textarea name="payload" rows="3"
+                              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500 font-mono text-sm"></textarea>
+                </div>
+            </div>
+        </form>
+
+        <!-- Lista de Eventos -->
+        {% if events %}
+        <div class="space-y-2">
+            {% for e in events %}
+            <div class="flex items-center justify-between bg-gray-800/30 rounded-lg px-4 py-3">
+                <div class="flex items-center gap-4">
+                    <span class="text-xs font-mono bg-gray-700 px-2 py-1 rounded">{{ e.trigger_second }}s</span>
+                    <span class="text-xs font-semibold uppercase
+                        {% if e.event_type == 'chat' %}text-blue-400
+                        {% elif e.event_type == 'cta_popup' %}text-yellow-400
+                        {% else %}text-purple-400{% endif %}">{{ e.event_type }}</span>
+                    <span class="text-sm text-gray-300">{{ e.payload[:80] }}{% if e.payload|length > 80 %}...{% endif %}</span>
+                </div>
+                <form method="POST" action="{{ url_for('admin.timeline_delete', event_id=e.id) }}" class="inline">
+                    <button type="submit" class="text-red-400 hover:text-red-300 text-sm" onclick="return confirm('Excluir?')">Excluir</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-center">Nenhum evento cadastrado.</p>
+        {% endif %}
+    </div>
+
+    <!-- Lista de Registrants deste webinario -->
+    <div class="bg-gray-900 rounded-xl p-6">
+        <h2 class="text-lg font-semibold mb-4">Registrados ({{ registrants|length }})</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-gray-400 text-left border-b border-gray-800">
+                        <th class="pb-3 pr-4">Nome</th>
+                        <th class="pb-3 pr-4">Email</th>
+                        <th class="pb-3 pr-4">Data Webinario</th>
+                        <th class="pb-3 pr-4">Assistiu</th>
+                        <th class="pb-3 pr-4">Tempo (min)</th>
+                        <th class="pb-3">CTA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in registrants %}
+                    <tr class="border-b border-gray-800/50">
+                        <td class="py-3 pr-4">{{ r.name }}</td>
+                        <td class="py-3 pr-4 text-gray-400">{{ r.email }}</td>
+                        <td class="py-3 pr-4 text-gray-400">{{ r.webinar_date.strftime('%d/%m/%Y %H:%M') if r.webinar_date else '-' }}</td>
+                        <td class="py-3 pr-4">
+                            {% if r.attended %}
+                            <span class="text-green-400">Sim</span>
+                            {% else %}
+                            <span class="text-gray-600">Nao</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 pr-4 text-gray-400">{{ (r.watch_time_seconds / 60)|round(1) }}</td>
+                        <td class="py-3">
+                            {% if r.clicked_cta %}
+                            <span class="text-yellow-400">Sim</span>
+                            {% else %}
+                            <span class="text-gray-600">Nao</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleFields() {
+    const type = document.getElementById('event-type').value;
+    document.getElementById('fields-chat').classList.toggle('hidden', type !== 'chat');
+    document.getElementById('fields-cta').classList.toggle('hidden', type !== 'cta_popup');
+    document.getElementById('fields-poll').classList.toggle('hidden', type !== 'poll');
+}
+</script>
+{% endblock %}

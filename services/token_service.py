@@ -6,8 +6,8 @@ from flask import current_app
 def generate_token(registrant_id, email):
     """Gera JWT com expiracao de 30 dias."""
     payload = {
-        'sub': registrant_id,
-        'email': email,
+        'sub': email,
+        'rid': registrant_id,
         'exp': datetime.utcnow() + timedelta(days=current_app.config['JWT_EXPIRATION_DAYS']),
         'iat': datetime.utcnow(),
     }
