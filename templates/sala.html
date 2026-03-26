@@ -90,8 +90,14 @@
         <div class="lg:col-span-2">
             <div class="bg-black rounded-xl overflow-hidden aspect-video relative">
                 {% if config and config.vturb_video_id %}
-                <iframe id="vturb-player"
-                        src="https://scripts.converteai.net/{{ config.vturb_video_id }}/players/{{ config.vturb_video_id }}/embed.html"
+                <vturb-smartplayer id="{{ config.vturb_video_id }}" style="display: block; margin: 0 auto; width: 100%; max-width: 100%;"></vturb-smartplayer>
+                <script type="text/javascript">
+                var s=document.createElement("script");
+                s.src="https://scripts.converteai.net/8757ee6b-f7d2-4b00-9669-54aa471b73a9/players/{{ config.vturb_video_id.replace('vid-', '') }}/v4/player.js";
+                s.async=!0;
+                document.head.appendChild(s);
+                </script>
+                <div id="vturb-dummy"
                         style="width:100%;height:100%;border:none;"
                         allow="autoplay; fullscreen"
                         allowfullscreen>
