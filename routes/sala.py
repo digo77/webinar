@@ -19,7 +19,7 @@ def sala():
     if not payload:
         return render_template('sala.html', error='Token invalido ou expirado'), 401
 
-    registrant = Registrant.query.filter_by(token=token).first()
+    registrant = Registrant.query.filter_by(email=payload.get("sub")).first()
     if not registrant:
         return render_template('sala.html', error='Registrante nao encontrado'), 404
 
@@ -79,7 +79,7 @@ def track():
         return jsonify({'error': 'no data'}), 400
 
     token = data.get('token', '')
-    registrant = Registrant.query.filter_by(token=token).first()
+    registrant = Registrant.query.filter_by(email=payload.get("sub")).first()
     if not registrant:
         return jsonify({'error': 'not found'}), 404
 
