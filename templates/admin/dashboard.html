@@ -128,7 +128,7 @@
                     <span>{{ w.stats.total }} registrados</span>
                     <span class="text-green-400">{{ w.stats.attended }} assistiram</span>
                     <span class="text-yellow-400">{{ w.stats.clicked_cta }} CTA</span>
-                    <span class="text-gray-600 font-mono text-xs">webhook: {{ w.webhook_token[:12] }}...</span>
+                    <span class="text-gray-600 font-mono text-xs">webhook: {% if w.webhook_token %}{{ w.webhook_token[:12] }}...{% else %}(sem token){% endif %}</span>
                 </div>
             </div>
             {% endfor %}
