@@ -387,6 +387,14 @@ def preview(webinar_id):
 # Gerador de Timeline com IA (Feature 3)
 # ---------------------------------------------------------------------------
 
+@admin_bp.route('/ai-provider-status')
+@login_required
+def ai_provider_status():
+    from services.ai_timeline import get_ai_provider
+    from flask import jsonify as _jsonify
+    return _jsonify({'provider': get_ai_provider()})
+
+
 @admin_bp.route('/ai-timeline/<int:webinar_id>', methods=['GET', 'POST'])
 @login_required
 def ai_timeline(webinar_id):

@@ -141,20 +141,32 @@ def transcribe_audio(file_path: str) -> list:
     return segments
 
 
+def get_ai_provider() -> str:
+    """
+    Retorna qual provedor de IA está disponível: 'claude', 'openai' ou 'none'.
+    Se ambas as chaves estão configuradas, prefere Claude.
+    """
+    anthropic_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
+    openai_key = os.environ.get('OPENAI_API_KEY', '').strip()
+    if anthropic_key:
+        return 'claude'
+    if openai_key:
+        return 'openai'
+    return 'none'
+
+
 def suggest_chat_events(transcript_segments: list, product_context: str) -> list:
     """
-    Usa Claude para sugerir mensagens de chat baseadas na transcrição.
+    Sugere mensagens de chat baseadas na transcrição.
+    Usa Claude se ANTHROPIC_API_KEY estiver disponível, senão GPT-4o via OPENAI_API_KEY.
     Retorna lista de dicts: [{trigger_second, author, message, reason}, ...]
     """
-    import anthropic as anthropic_sdk
-
-    api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
-    if not api_key:
+    provider = get_ai_provider()
+    if provider == 'none':
         raise ValueError(
-            'ANTHROPIC_API_KEY não configurada. '
-            'Adicione a variável de ambiente no EasyPanel (serviço → Environment Variables).'
+            'Nenhuma API key configurada. Adicione ANTHROPIC_API_KEY ou OPENAI_API_KEY '
+            'no EasyPanel (serviço → Environment Variables).'
         )
-    client = anthropic_sdk.Anthropic(api_key=api_key)
 
     # Monta transcrição com timestamps
     if transcript_segments:
@@ -165,44 +177,59 @@ def suggest_chat_events(transcript_segments: list, product_context: str) -> list
     else:
         transcript_text = '(transcrição não disponível)'
 
-    user_message = f"""Contexto do produto/webinário:
-{product_context}
-
-Transcrição com timestamps (em segundos):
-{transcript_text}
-
-Sugira entre 10 e 20 mensagens de chat simulado para engajamento e conversão.
-Distribua estrategicamente ao longo do vídeo, concentrando mais nas viradas
-de conteúdo (apresentação do produto, prova social, oferta, urgência).
-Use nomes brasileiros variados e mensagens naturais, com emojis ocasionais.
-Retorne APENAS JSON válido, sem nenhuma explicação ou markdown ao redor."""
-
-    response = client.messages.create(
-        model='claude-sonnet-4-5',
-        max_tokens=4096,
-        system="""Você é um especialista em webinários de vendas. Analise a transcrição \
-deste webinário e sugira mensagens de chat simulado para aumentar o \
-engajamento e conversão. As mensagens devem parecer naturais, de \
-participantes reais assistindo ao vídeo ao vivo. Retorne APENAS JSON válido.
-
-Formato de retorno (array JSON):
-[
-  {
-    "trigger_second": 45,
-    "author": "Mariana Silva",
-    "message": "Que receita incrível! Já quero fazer isso em casa 😍",
-    "reason": "Momento em que o Chef apresenta o produto pela primeira vez"
-  }
-]""",
-        messages=[{'role': 'user', 'content': user_message}],
+    system_prompt = (
+        'Você é um especialista em webinários de vendas. Analise a transcrição '
+        'deste webinário e sugira mensagens de chat simulado para aumentar o '
+        'engajamento e conversão. As mensagens devem parecer naturais, de '
+        'participantes reais assistindo ao vídeo ao vivo. Retorne APENAS JSON válido.\n\n'
+        'Formato de retorno (array JSON):\n'
+        '[\n'
+        '  {\n'
+        '    "trigger_second": 45,\n'
+        '    "author": "Mariana Silva",\n'
+        '    "message": "Que receita incrível! Já quero fazer isso em casa 😍",\n'
+        '    "reason": "Momento em que o Chef apresenta o produto pela primeira vez"\n'
+        '  }\n'
+        ']'
     )
 
-    raw = response.content[0].text.strip()
+    user_message = (
+        f'Contexto do produto/webinário:\n{product_context}\n\n'
+        f'Transcrição com timestamps (em segundos):\n{transcript_text}\n\n'
+        'Sugira entre 15 e 25 mensagens de chat simulado para engajamento e conversão. '
+        'Distribua estrategicamente ao longo do vídeo, concentrando mais nas viradas '
+        'de conteúdo (apresentação do produto, prova social, oferta, urgência). '
+        'Use nomes brasileiros variados e mensagens naturais, com emojis ocasionais. '
+        'Retorne APENAS JSON válido, sem nenhuma explicação ou markdown ao redor.'
+    )
+
+    if provider == 'claude':
+        import anthropic as anthropic_sdk
+        client = anthropic_sdk.Anthropic(api_key=os.environ['ANTHROPIC_API_KEY'].strip())
+        response = client.messages.create(
+            model='claude-sonnet-4-5',
+            max_tokens=4096,
+            system=system_prompt,
+            messages=[{'role': 'user', 'content': user_message}],
+        )
+        raw = response.content[0].text.strip()
+
+    else:  # openai
+        from openai import OpenAI
+        client = OpenAI(api_key=os.environ['OPENAI_API_KEY'].strip())
+        response = client.chat.completions.create(
+            model='gpt-4o',
+            max_tokens=4096,
+            messages=[
+                {'role': 'system', 'content': system_prompt},
+                {'role': 'user', 'content': user_message},
+            ],
+        )
+        raw = response.choices[0].message.content.strip()
 
     # Remove markdown code fences se presentes
     if raw.startswith('```'):
         lines = raw.split('\n')
-        # Remove primeira e última linha (``` e ```)
         inner = lines[1:]
         if inner and inner[-1].strip().startswith('```'):
             inner = inner[:-1]
