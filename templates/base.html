@@ -4,11 +4,85 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}AutoWebinar{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a24;
+            --bg-elevated: #22222f;
+            --accent-gold: #f5a623;
+            --accent-gold-light: #ffc85a;
+            --accent-gold-dark: #d4841a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b8;
+            --text-muted: #606078;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --border: #2a2a3a;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        .btn-gold {
+            background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light));
+            color: #0a0a0f;
+            font-weight: 700;
+            border-radius: 8px;
+            padding: 14px 28px;
+            border: none;
+            cursor: pointer;
+            transition: opacity .15s, transform .1s;
+            display: inline-block;
+            text-align: center;
+            text-decoration: none;
+        }
+        .btn-gold:hover { opacity: .92; }
+        .btn-gold:active { transform: scale(.98); }
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0,0,0,.4);
+        }
+        .badge {
+            border-radius: 20px;
+            padding: 2px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .3; }
+        }
+        .pulse { animation: pulse-dot 2s infinite; }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeInUp .3s ease-out; }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .slide-down { animation: slideDown .35s ease-out; }
+        /* scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    </style>
     {% block head %}{% endblock %}
 </head>
-<body class="bg-gray-950 text-white min-h-screen">
+<body>
     {% block body %}{% endblock %}
     {% block scripts %}{% endblock %}
 </body>

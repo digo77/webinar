@@ -22,8 +22,14 @@ def register():
         email = request.form.get('email', '').strip().lower()
 
         if not name or not email:
+            _nd = get_next_webinar_date(
+                day_of_week=webinar.day_of_week or 1,
+                start_hour=webinar.start_hour or 19,
+                start_minute=webinar.start_minute or 0,
+            )
+            _is_open = is_webinar_open(_nd) if _nd else False
             return render_template('registrar.html', webinar=webinar,
-                                   error='Preencha nome e e-mail.')
+                                   error='Preencha nome e e-mail.', is_open=_is_open)
 
         # Busca ou cria o registrante (por email + webinar)
         registrant = Registrant.query.filter_by(
@@ -62,4 +68,10 @@ def register():
         return redirect(url_for('sala.sala'))
 
     # GET
-    return render_template('registrar.html', webinar=webinar, error=None)
+    next_date = get_next_webinar_date(
+        day_of_week=webinar.day_of_week or 1,
+        start_hour=webinar.start_hour or 19,
+        start_minute=webinar.start_minute or 0,
+    )
+    is_open = is_webinar_open(next_date) if next_date else False
+    return render_template('registrar.html', webinar=webinar, error=None, is_open=is_open)

@@ -3,142 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if webinar %}{{ webinar.name }}{% else %}Webinário{% endif %} — Acesso</title>
+    <title>{% if webinar %}{{ webinar.register_headline or webinar.name }}{% else %}Webinário{% endif %} — Acesso</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #0a0a0f; color: #f3f4f6; font-family: system-ui, -apple-system, sans-serif; }
-
-        .pulse-dot { animation: pulse 2s infinite; }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
+        :root {
+            --bg: {{ webinar.register_bg_color if webinar and webinar.register_bg_color else '#0a0a0f' }};
+            --accent: #f5a623;
         }
-
-        .glow-border:focus {
-            outline: none;
-            border-color: #f59e0b;
-            box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: #fff;
+            min-height: 100vh;
         }
-
-        .btn-main {
-            background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
-            transition: opacity .2s, transform .1s;
+        {% if webinar and webinar.register_mode == 2 and webinar.register_bg_image_url %}
+        body {
+            background-image: url('{{ webinar.register_bg_image_url }}');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
         }
-        .btn-main:hover { opacity: .92; }
-        .btn-main:active { transform: scale(.98); }
-
-        .card {
-            background: rgba(255,255,255,.04);
-            border: 1px solid rgba(255,255,255,.08);
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.72);
+            z-index: 0;
+        }
+        {% endif %}
+        .wrap { position: relative; z-index: 1; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+        .pulse { animation: pulse 2s infinite; }
+        .btn-gold {
+            background: linear-gradient(135deg, #f5a623, #ffc85a);
+            color: #0a0a0f; font-weight: 800; border-radius: 8px;
+            padding: 16px 28px; width: 100%; border: none; cursor: pointer;
+            font-size: 1rem; transition: opacity .15s, transform .1s;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-gold:hover { opacity:.92; }
+        .btn-gold:active { transform: scale(.98); }
+        .input-field {
+            width: 100%; background: rgba(255,255,255,.07);
+            border: 1.5px solid rgba(255,255,255,.12);
+            border-radius: 10px; padding: 14px 16px;
+            color: #fff; font-size: 1rem; font-family: 'Inter', sans-serif;
+            outline: none; transition: border-color .2s;
+        }
+        .input-field::placeholder { color: rgba(255,255,255,.3); }
+        .input-field:focus { border-color: #f5a623; box-shadow: 0 0 0 3px rgba(245,166,35,.12); }
+        .card-form {
+            background: rgba(255,255,255,.05);
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 16px;
+            padding: 28px 24px;
         }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center px-4 py-12">
-
+<body>
+<div class="wrap min-h-screen flex items-center justify-center px-4 py-12">
 <div class="w-full max-w-md mx-auto">
 
-    {% if error and not webinar %}
-    <!-- Webinário não encontrado -->
-    <div class="card rounded-2xl p-8 text-center">
+{% if error and not webinar %}
+    <div class="card-form text-center">
         <div class="text-5xl mb-4">🔒</div>
         <h1 class="text-xl font-bold mb-2">Link inválido</h1>
-        <p class="text-gray-400 text-sm">{{ error }}</p>
+        <p style="color:#a0a0b8" class="text-sm">{{ error }}</p>
     </div>
+{% else %}
 
+{% set mode = webinar.register_mode if webinar and webinar.register_mode else 1 %}
+{% set headline = webinar.register_headline if webinar and webinar.register_headline else (webinar.name if webinar else 'Aula ao Vivo') %}
+{% set subtitle = webinar.register_subtitle if webinar and webinar.register_subtitle else 'Garanta seu lugar na aula de hoje' %}
+{% set btn_text = webinar.register_button_text if webinar and webinar.register_button_text else 'Garantir meu lugar' %}
+
+<!-- Badge AO VIVO -->
+<div class="flex justify-center mb-5">
+    {% if is_open %}
+    <div class="flex items-center gap-2 px-4 py-1.5 rounded-full" style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4)">
+        <div class="w-2 h-2 rounded-full pulse" style="background:#ef4444"></div>
+        <span style="color:#f87171;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">Aula ao vivo agora</span>
+    </div>
     {% else %}
-
-    <!-- Badge AO VIVO -->
-    <div class="flex justify-center mb-6">
-        <div class="flex items-center gap-2 bg-red-950/60 border border-red-800/50 rounded-full px-4 py-1.5">
-            <div class="w-2 h-2 bg-red-500 rounded-full pulse-dot"></div>
-            <span class="text-red-400 text-xs font-semibold uppercase tracking-widest">Aula ao vivo</span>
-        </div>
+    <div class="flex items-center gap-2 px-4 py-1.5 rounded-full" style="background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.3)">
+        <div class="w-2 h-2 rounded-full pulse" style="background:#f5a623"></div>
+        <span style="color:#f5a623;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">Aula hoje</span>
     </div>
-
-    <!-- Nome do webinário -->
-    <div class="text-center mb-8">
-        {% if webinar and webinar.client_name %}
-        <p class="text-yellow-400 text-sm font-medium mb-2 uppercase tracking-wider">{{ webinar.client_name }}</p>
-        {% endif %}
-        <h1 class="text-2xl sm:text-3xl font-bold leading-tight">
-            {% if webinar %}{{ webinar.name }}{% else %}Aula ao Vivo{% endif %}
-        </h1>
-        <p class="text-gray-400 mt-3 text-sm leading-relaxed">
-            Garanta seu lugar na aula de hoje.<br>
-            O acesso é <span class="text-white font-medium">gratuito</span> — basta preencher seus dados.
-        </p>
-    </div>
-
-    <!-- Card do formulário -->
-    <div class="card rounded-2xl p-6 sm:p-8">
-
-        {% if error %}
-        <div class="bg-red-950/50 border border-red-800/60 rounded-xl px-4 py-3 mb-5 text-red-300 text-sm">
-            {{ error }}
-        </div>
-        {% endif %}
-
-        <form method="POST" action="{{ request.url }}" novalidate>
-            <div class="space-y-4">
-                <div>
-                    <label for="name" class="block text-sm font-medium text-gray-300 mb-1.5">
-                        Seu nome
-                    </label>
-                    <input
-                        type="text"
-                        id="name"
-                        name="name"
-                        required
-                        autocomplete="given-name"
-                        placeholder="Como posso te chamar?"
-                        value="{{ request.form.get('name', '') }}"
-                        class="glow-border w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3
-                               text-white placeholder-gray-500 text-base"
-                    >
-                </div>
-
-                <div>
-                    <label for="email" class="block text-sm font-medium text-gray-300 mb-1.5">
-                        Seu melhor e-mail
-                    </label>
-                    <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        required
-                        autocomplete="email"
-                        placeholder="voce@email.com"
-                        value="{{ request.form.get('email', '') }}"
-                        class="glow-border w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3
-                               text-white placeholder-gray-500 text-base"
-                    >
-                </div>
-
-                <button
-                    type="submit"
-                    class="btn-main w-full rounded-xl px-6 py-4 text-white font-bold text-base mt-2"
-                >
-                    Acessar aula agora →
-                </button>
-            </div>
-        </form>
-
-        <p class="text-center text-xs text-gray-600 mt-5 leading-relaxed">
-            Ao se cadastrar você concorda em receber comunicações.<br>
-            Sem spam. Cancele quando quiser.
-        </p>
-    </div>
-
-    <!-- Prova social mínima -->
-    <div class="flex items-center justify-center gap-2 mt-6 text-gray-500 text-xs">
-        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/>
-        </svg>
-        <span>Pessoas já assistindo agora</span>
-    </div>
-
     {% endif %}
 </div>
 
+{% if mode == 3 and webinar and webinar.register_presenter_photo_url %}
+<!-- MODO 3: Foto do apresentador + bullets -->
+<div class="flex flex-col sm:flex-row gap-6 items-center mb-6">
+    <img src="{{ webinar.register_presenter_photo_url }}"
+         alt="Apresentador"
+         class="w-28 h-28 sm:w-36 sm:h-36 rounded-full object-cover shrink-0"
+         style="border:3px solid #f5a623">
+    <div class="text-center sm:text-left">
+        {% if webinar.client_name %}
+        <p class="text-xs font-semibold uppercase tracking-widest mb-1" style="color:#f5a623">{{ webinar.client_name }}</p>
+        {% endif %}
+        <h1 class="text-2xl font-bold leading-tight mb-3">{{ headline }}</h1>
+        {% if webinar.register_bullets %}
+        {% set bullets = webinar.register_bullets | from_json %}
+        <ul class="space-y-1.5">
+            {% for b in bullets %}
+            <li class="flex items-start gap-2 text-sm" style="color:#d0d0e8">
+                <span style="color:#f5a623;margin-top:2px">✓</span>
+                <span>{{ b }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<!-- MODO 1 e 2: Headline centralizada -->
+<div class="text-center mb-6">
+    {% if webinar and webinar.client_name %}
+    <p class="text-xs font-semibold uppercase tracking-widest mb-2" style="color:#f5a623">{{ webinar.client_name }}</p>
+    {% endif %}
+    <h1 class="text-2xl sm:text-3xl font-bold leading-tight mb-2">{{ headline }}</h1>
+    <p class="text-sm leading-relaxed" style="color:#a0a0b8">{{ subtitle }}</p>
+</div>
+{% endif %}
+
+<!-- Formulário -->
+<div class="card-form">
+    {% if error %}
+    <div class="rounded-lg px-4 py-3 mb-4 text-sm" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#fca5a5">
+        {{ error }}
+    </div>
+    {% endif %}
+    <form method="POST" action="{{ request.url }}" novalidate>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium mb-1.5" style="color:#a0a0b8">Seu nome</label>
+                <input type="text" name="name" required autocomplete="given-name"
+                       placeholder="Como posso te chamar?"
+                       value="{{ request.form.get('name', '') }}"
+                       class="input-field">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1.5" style="color:#a0a0b8">Seu melhor e-mail</label>
+                <input type="email" name="email" required autocomplete="email"
+                       placeholder="voce@email.com"
+                       value="{{ request.form.get('email', '') }}"
+                       class="input-field">
+            </div>
+            <button type="submit" class="btn-gold">{{ btn_text }} →</button>
+        </div>
+    </form>
+    <p class="text-center text-xs mt-4 leading-relaxed" style="color:#606078">
+        Sem spam. Seus dados estão seguros.
+    </p>
+</div>
+
+{% endif %}
+</div>
+</div>
 </body>
 </html>

@@ -1,148 +1,324 @@
 {% extends "base.html" %}
-
-{% block title %}Webinario ao Vivo - Chef Aureo{% endblock %}
+{% block title %}{{ config.name if config else 'Webinário' }} — Ao Vivo{% endblock %}
 
 {% block head %}
 <style>
-    .chat-box { scrollbar-width: thin; scrollbar-color: #374151 #111827; }
-    .chat-msg { animation: fadeInUp 0.3s ease-out; }
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    .cta-popup { animation: scaleIn 0.4s ease-out; }
-    @keyframes scaleIn {
-        from { opacity: 0; transform: scale(0.9); }
-        to { opacity: 1; transform: scale(1); }
-    }
-    .pulse-dot {
-        animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
-    }
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+.sala-grid {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    gap: 16px;
+    height: calc(100vh - 64px);
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 16px 16px;
+}
+@media (max-width: 768px) {
+    .sala-grid { grid-template-columns: 1fr; height: auto; padding: 0 8px 100px; }
+    .panel-right { height: 420px; }
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.sala-header {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+/* ── Chat ───────────────────────────────────────────────────────────────── */
+.chat-msg { animation: fadeInUp .25s ease-out; }
+.chat-avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+    color: #fff;
+}
+
+/* ── Abas ───────────────────────────────────────────────────────────────── */
+.tab-btn {
+    flex: 1; padding: 10px 4px; font-size: 13px; font-weight: 600;
+    border-bottom: 2px solid transparent; transition: all .15s;
+    color: var(--text-muted); cursor: pointer; text-align: center;
+    background: none; border-top: none; border-left: none; border-right: none;
+}
+.tab-btn.active { color: var(--accent-gold); border-bottom-color: var(--accent-gold); }
+
+/* ── Purchase notification ──────────────────────────────────────────────── */
+.purchase-banner {
+    background: linear-gradient(135deg, rgba(245,166,35,.15), rgba(245,166,35,.05));
+    border: 1px solid rgba(245,166,35,.35);
+    border-radius: 10px;
+    padding: 10px 12px;
+    animation: slideDown .35s ease-out;
+}
+
+/* ── Rodapé fixo oferta ─────────────────────────────────────────────────── */
+#offer-footer {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; z-index: 100;
+    box-shadow: 0 -4px 24px rgba(0,0,0,.5);
+}
+@media (max-width: 768px) {
+    #offer-footer { flex-direction: column; gap: 8px; padding: 10px 16px; }
+    #offer-footer .btn-gold { width: 100%; text-align: center; }
+}
+
+/* ── Tela de encerramento ───────────────────────────────────────────────── */
+#broadcast-end {
+    position: fixed; inset: 0; z-index: 200;
+    background: linear-gradient(160deg, rgba(10,10,15,.97) 0%, rgba(80,10,10,.85) 100%);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; text-align: center; padding: 24px;
+}
+
+/* ── Live dot ───────────────────────────────────────────────────────────── */
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+.live-dot { animation: blink 1.5s infinite; }
+
+/* ── Countdown display ──────────────────────────────────────────────────── */
+.countdown-display {
+    font-size: 2rem; font-weight: 800;
+    background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
 </style>
 {% endblock %}
 
 {% block body %}
+
 {% if error %}
-<!-- ERRO -->
-<div class="flex items-center justify-center min-h-screen">
-    <div class="bg-gray-900 rounded-2xl p-8 max-w-md text-center">
-        <div class="text-red-400 text-5xl mb-4">&#9888;</div>
-        <h1 class="text-xl font-bold mb-2">Acesso negado</h1>
-        <p class="text-gray-400">{{ error }}</p>
+<!-- ── ERRO ─────────────────────────────────────────────────────────── -->
+<div style="display:flex;align-items:center;justify-content:center;min-height:100vh">
+    <div class="card" style="max-width:400px;text-align:center;padding:40px 32px">
+        <div style="font-size:48px;margin-bottom:16px">🔒</div>
+        <h1 style="font-size:20px;font-weight:700;margin-bottom:8px">Acesso negado</h1>
+        <p style="color:var(--text-secondary)">{{ error }}</p>
+        <a href="/registrar" class="btn-gold" style="margin-top:20px;display:inline-block">Fazer cadastro</a>
     </div>
 </div>
 
 {% elif waiting %}
-<!-- AGUARDE - COUNTDOWN -->
-<div class="flex items-center justify-center min-h-screen">
-    <div class="bg-gray-900 rounded-2xl p-8 max-w-lg text-center">
-        <h1 class="text-2xl font-bold mb-2">Oi, {{ name.split()[0] if name else 'participante' }}!</h1>
-        <p class="text-gray-400 mb-6">O webinario ainda nao comecou. Fique atento ao horario:</p>
-        <div id="countdown" class="text-4xl font-mono font-bold text-yellow-400 mb-4">--:--:--</div>
-        <p class="text-gray-500 text-sm">Volte nesta pagina na terca-feira as 19h (horario de Brasilia)</p>
+<!-- ── COUNTDOWN ─────────────────────────────────────────────────── -->
+<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px">
+    <div class="card" style="max-width:480px;width:100%;text-align:center;padding:48px 32px">
+        <div style="margin-bottom:8px;display:flex;justify-content:center">
+            <div style="background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.3);border-radius:20px;padding:4px 16px;font-size:12px;font-weight:700;color:#f5a623;letter-spacing:.06em;text-transform:uppercase">
+                Começando em breve
+            </div>
+        </div>
+        <h1 style="font-size:26px;font-weight:800;margin:20px 0 8px">
+            Oi, {{ name.split()[0] if name else 'participante' }}! 👋
+        </h1>
+        <p style="color:var(--text-secondary);margin-bottom:32px">
+            A aula ainda não começou. Quando iniciar, esta página atualizará automaticamente.
+        </p>
+        <div class="countdown-display" id="countdown">--:--:--</div>
+        <p style="color:var(--text-muted);font-size:13px;margin-top:16px">
+            Horário de Brasília
+        </p>
+        <div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--border)">
+            <p style="color:var(--text-muted);font-size:12px">
+                Mantenha esta página aberta — ela recarregará automaticamente quando a aula iniciar.
+            </p>
+        </div>
     </div>
 </div>
 <script>
-    const webinarDate = new Date("{{ webinar_date }}");
-    function updateCountdown() {
-        const now = new Date();
-        const diff = webinarDate - now;
-        if (diff <= 0) {
-            location.reload();
-            return;
-        }
-        const d = Math.floor(diff / 86400000);
-        const h = Math.floor((diff % 86400000) / 3600000);
-        const m = Math.floor((diff % 3600000) / 60000);
-        const s = Math.floor((diff % 60000) / 1000);
-        let txt = '';
-        if (d > 0) txt += d + 'd ';
-        txt += String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
-        document.getElementById('countdown').textContent = txt;
-    }
-    updateCountdown();
-    setInterval(updateCountdown, 1000);
+const webinarDate = new Date("{{ webinar_date }}");
+function updateCountdown() {
+    const diff = webinarDate - new Date();
+    if (diff <= 0) { location.reload(); return; }
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    let txt = '';
+    if (d > 0) txt += d + 'd ';
+    txt += String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    document.getElementById('countdown').textContent = txt;
+}
+updateCountdown();
+setInterval(updateCountdown, 1000);
 </script>
 
 {% else %}
-<!-- SALA DO WEBINARIO -->
-<div class="max-w-6xl mx-auto p-4">
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-3">
-            <div class="w-2 h-2 bg-red-500 rounded-full pulse-dot"></div>
-            <span class="text-red-400 font-semibold text-sm uppercase tracking-wide">Ao Vivo</span>
-        </div>
-        <div class="flex items-center gap-2 text-gray-400 text-sm">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/>
-            </svg>
-            <span id="viewer-count">{{ config.attendee_count_base if config else 47 }}</span> assistindo
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- SALA AO VIVO -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+
+<!-- Header -->
+<header class="sala-header">
+    <div style="display:flex;align-items:center;gap:8px">
+        <div class="live-dot" style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0"></div>
+        <span style="color:#f87171;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">Ao Vivo</span>
+    </div>
+    <div style="font-size:15px;font-weight:600;color:var(--text-primary);text-align:center;flex:1;margin:0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+        {{ config.name if config else 'Webinário' }}
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;color:var(--text-muted);font-size:13px;flex-shrink:0">
+        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>
+        <span id="viewer-count">{{ config.attendee_count_base if config else 47 }}</span>
+        <span style="color:var(--text-muted)">assistindo</span>
+    </div>
+</header>
+
+<!-- Grid principal -->
+<div class="sala-grid">
+
+    <!-- ── Coluna esquerda: Vídeo ── -->
+    <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+        <div style="background:#000;border-radius:12px;overflow:hidden;aspect-ratio:16/9;position:relative">
+            {% if config and config.vturb_video_id %}
+            <vturb-smartplayer id="{{ config.vturb_video_id }}" style="display:block;width:100%;height:100%"></vturb-smartplayer>
+            <script>
+            var s=document.createElement("script");
+            s.src="https://scripts.converteai.net/8757ee6b-f7d2-4b00-9669-54aa471b73a9/players/{{ config.vturb_video_id.replace('vid-', '') }}/v4/player.js";
+            s.async=true; document.head.appendChild(s);
+            </script>
+            {% else %}
+            <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted)">
+                <p>Vídeo não configurado</p>
+            </div>
+            {% endif %}
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <!-- Video -->
-        <div class="lg:col-span-2">
-            <div class="bg-black rounded-xl overflow-hidden aspect-video relative">
-                {% if config and config.vturb_video_id %}
-                <vturb-smartplayer id="{{ config.vturb_video_id }}" style="display: block; margin: 0 auto; width: 100%; max-width: 100%;"></vturb-smartplayer>
-                <script type="text/javascript">
-                var s=document.createElement("script");
-                s.src="https://scripts.converteai.net/8757ee6b-f7d2-4b00-9669-54aa471b73a9/players/{{ config.vturb_video_id.replace('vid-', '') }}/v4/player.js";
-                s.async=!0;
-                document.head.appendChild(s);
-                </script>
-                <div id="vturb-dummy"
-                        style="width:100%;height:100%;border:none;"
-                        allow="autoplay; fullscreen"
-                        allowfullscreen>
-                </iframe>
-                {% else %}
-                <div class="flex items-center justify-center h-full text-gray-500">
-                    <p>Video nao configurado</p>
-                </div>
+    <!-- ── Coluna direita: Painel ── -->
+    <div class="panel-right card" style="display:flex;flex-direction:column;overflow:hidden;border-radius:12px">
+
+        <!-- Abas -->
+        <div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0">
+            <button class="tab-btn active" id="tab-chat" onclick="switchTab('chat')">💬 Chat</button>
+            <button class="tab-btn" id="tab-support" onclick="switchTab('support')">🛟 Suporte</button>
+            <button class="tab-btn" id="tab-offer" onclick="switchTab('offer')" style="display:none">🔥 Oferta</button>
+        </div>
+
+        <!-- ── Painel CHAT ── -->
+        <div id="panel-chat" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+            <div id="chat-box" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px"></div>
+            <!-- Input usuário (visual) -->
+            <div style="padding:10px 12px;border-top:1px solid var(--border);display:flex;gap-8px;gap:8px">
+                <input type="text" id="user-chat-input" placeholder="Digite algo..."
+                       style="flex:1;background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;outline:none;font-family:'Inter',sans-serif">
+                <button onclick="sendUserChat()"
+                        style="background:var(--accent-gold);color:#0a0a0f;border:none;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;font-size:13px;flex-shrink:0">
+                    ↑
+                </button>
+            </div>
+        </div>
+
+        <!-- ── Painel SUPORTE ── -->
+        <div id="panel-support" style="display:none;flex-direction:column;flex:1;overflow:hidden;padding:16px">
+            <p style="font-weight:600;margin-bottom:4px">Envie sua dúvida</p>
+            <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px">Nossa equipe responderá em breve.</p>
+            <textarea id="support-input" rows="4" placeholder="Escreva sua dúvida aqui..."
+                      style="width:100%;background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-size:13px;resize:none;outline:none;font-family:'Inter',sans-serif;margin-bottom:10px"></textarea>
+            <button onclick="sendSupport()"
+                    style="background:linear-gradient(135deg,#f5a623,#ffc85a);color:#0a0a0f;border:none;border-radius:8px;padding:11px 20px;font-weight:700;cursor:pointer;font-size:14px;width:100%">
+                Enviar mensagem
+            </button>
+            <div id="support-status" style="display:none;margin-top:12px;text-align:center;color:var(--success);font-size:13px;font-weight:600">
+                ✅ Mensagem enviada! Responderemos em breve.
+            </div>
+        </div>
+
+        <!-- ── Painel OFERTA ── -->
+        <div id="panel-offer" style="display:none;flex-direction:column;flex:1;overflow-y:auto;padding:16px;gap:12px">
+            {% if config and config.offer_image_url %}
+            <img src="{{ config.offer_image_url }}" alt="Oferta" style="width:100%;border-radius:10px;object-fit:cover">
+            {% endif %}
+            <div style="background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:8px;padding:6px 12px;text-align:center">
+                <span style="color:#f5a623;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">⏰ Por tempo limitado</span>
+            </div>
+            <div style="text-align:center">
+                <h3 style="font-size:17px;font-weight:700;margin-bottom:8px">{{ config.upsell_cta_text if config else 'Oferta especial' }}</h3>
+                {% if config and config.offer_original_price %}
+                <p style="color:var(--text-muted);font-size:13px;text-decoration:line-through">{{ config.offer_original_price }}</p>
+                {% endif %}
+                {% if config and config.offer_price %}
+                <p style="font-size:22px;font-weight:800;color:var(--accent-gold)">{{ config.offer_price }}</p>
                 {% endif %}
             </div>
-
-            <!-- CTA Popup Area -->
-            <div id="cta-area" class="mt-4 hidden">
-                <div class="cta-popup bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl p-6 text-center">
-                    <h3 id="cta-title" class="text-xl font-bold text-gray-900 mb-2"></h3>
-                    <div id="cta-countdown" class="text-3xl font-mono font-bold text-gray-900 mb-4"></div>
-                    <a id="cta-button" href="#" target="_blank"
-                       class="inline-block bg-gray-900 text-white font-bold py-3 px-8 rounded-lg text-lg hover:bg-gray-800 transition">
-                        {{ config.upsell_cta_text if config else 'Quero aproveitar!' }}
-                    </a>
-                </div>
+            <div style="text-align:center">
+                <p style="color:var(--text-muted);font-size:12px;margin-bottom:6px">Encerra em</p>
+                <div id="offer-countdown" class="countdown-display">--:--</div>
             </div>
+            <a id="offer-btn" href="{{ config.upsell_url if config else '#' }}" target="_blank"
+               class="btn-gold" style="display:block;text-align:center;text-decoration:none;font-size:15px"
+               onclick="trackCTA()">
+                {{ config.upsell_cta_text if config else 'Quero aproveitar!' }} →
+            </a>
         </div>
 
-        <!-- Chat -->
-        <div class="bg-gray-900 rounded-xl flex flex-col h-[500px] lg:h-auto">
-            <div class="px-4 py-3 border-b border-gray-800">
-                <h3 class="font-semibold text-sm">Chat ao vivo</h3>
-            </div>
-            <div id="chat-box" class="flex-1 overflow-y-auto p-4 space-y-3 chat-box">
-                <!-- Mensagens inseridas via JS -->
-            </div>
-        </div>
+    </div><!-- /panel-right -->
+</div><!-- /sala-grid -->
+
+<!-- ── Rodapé fixo de oferta ─────────────────────────────────────── -->
+<div id="offer-footer" style="display:none">
+    <div>
+        {% if config and config.offer_original_price %}
+        <p style="font-size:11px;color:var(--text-muted);text-decoration:line-through;line-height:1">{{ config.offer_original_price }}</p>
+        {% endif %}
+        {% if config and config.offer_price %}
+        <p style="font-size:17px;font-weight:800;color:var(--accent-gold);line-height:1.2">{{ config.offer_price }}</p>
+        {% endif %}
+    </div>
+    <div style="text-align:center">
+        <p style="font-size:11px;color:var(--text-muted)">Restam</p>
+        <div id="footer-countdown" style="font-size:20px;font-weight:800;color:var(--accent-gold);font-family:'Inter',sans-serif">--:--</div>
+    </div>
+    <a id="footer-offer-btn" href="{{ config.upsell_url if config else '#' }}" target="_blank"
+       class="btn-gold" style="text-decoration:none;font-size:14px;padding:12px 20px;white-space:nowrap"
+       onclick="trackCTA()">
+        QUERO APROVEITAR! →
+    </a>
+</div>
+
+<!-- ── Tela de encerramento ──────────────────────────────────────── -->
+<div id="broadcast-end" style="display:none">
+    <div style="max-width:420px">
+        <div style="font-size:48px;margin-bottom:16px">🎬</div>
+        <h2 style="font-size:26px;font-weight:800;margin-bottom:8px">Aula encerrada!</h2>
+        <p style="color:var(--text-secondary);margin-bottom:24px">Mas a oferta ainda está disponível por tempo limitado.</p>
+        {% if config and config.offer_image_url %}
+        <img src="{{ config.offer_image_url }}" alt="Oferta" style="width:100%;max-width:300px;border-radius:12px;margin-bottom:16px">
+        {% endif %}
+        {% if config and config.offer_price %}
+        <p style="font-size:26px;font-weight:800;color:var(--accent-gold);margin-bottom:20px">{{ config.offer_price }}</p>
+        {% endif %}
+        <a href="{{ config.upsell_url if config else '#' }}" target="_blank"
+           class="btn-gold" style="display:inline-block;text-decoration:none;font-size:16px;padding:16px 32px"
+           onclick="trackCTA()">
+            {{ config.upsell_cta_text if config else 'Quero aproveitar!' }} →
+        </a>
     </div>
 </div>
 
 <!-- Dados para o JS -->
 <script>
-    window.WEBINAR_ID = {{ config.id if config else 'null' }};
-    window.WEBINAR_CONFIG = {
-        attendeeBase: {{ config.attendee_count_base if config else 47 }},
-        upsellUrl: "{{ config.upsell_url if config else '' }}",
-        ctaText: "{{ config.upsell_cta_text if config else '' }}"
-    };
+window.WEBINAR_ID = {{ config.id if config else 'null' }};
+window.WEBINAR_CONFIG = {
+    attendeeBase: {{ config.attendee_count_base if config else 47 }},
+    upsellUrl: "{{ config.upsell_url if config else '' }}",
+    ctaText: "{{ config.upsell_cta_text if config else '' }}",
+    chatbotResponses: {{ (config.chatbot_responses or '[]') | safe if config else '[]' }},
+    offerOriginalPrice: "{{ config.offer_original_price if config else '' }}",
+    offerPrice: "{{ config.offer_price if config else '' }}"
+};
 </script>
 <script src="/static/webinar-engine.js"></script>
+
 {% endif %}
 {% endblock %}

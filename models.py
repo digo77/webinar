@@ -6,7 +6,6 @@ db = SQLAlchemy()
 
 class Registrant(db.Model):
     __tablename__ = 'registrants'
-
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.Text)
     email = db.Column(db.Text)
@@ -19,36 +18,58 @@ class Registrant(db.Model):
     watch_time_seconds = db.Column(db.Integer, default=0)
     clicked_cta = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
     webinar = db.relationship('WebinarConfig', backref='registrants')
 
 
 class WebinarConfig(db.Model):
     __tablename__ = 'webinar_config'
-
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.Text)
     client_name = db.Column(db.Text)
     webhook_token = db.Column(db.Text, unique=True)
     vturb_video_id = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True)
-    day_of_week = db.Column(db.Integer, default=1)      # 0=seg, 1=ter, ..., 6=dom
+    day_of_week = db.Column(db.Integer, default=1)
     start_hour = db.Column(db.Integer, default=19)
     start_minute = db.Column(db.Integer, default=0)
     attendee_count_base = db.Column(db.Integer, default=47)
     upsell_url = db.Column(db.Text)
     upsell_cta_text = db.Column(db.Text)
-    test_date = db.Column(db.Text)  # datetime-local ISO string, ex: "2026-03-27T20:00"
-    slug = db.Column(db.Text, unique=True)  # identificador de URL, ex: "cookie-sandwich"
+    test_date = db.Column(db.Text)
+    slug = db.Column(db.Text, unique=True)
+    # Campos de oferta
+    offer_image_url = db.Column(db.Text)
+    offer_original_price = db.Column(db.Text)
+    offer_price = db.Column(db.Text)
+    # Chatbot
+    chatbot_responses = db.Column(db.Text)  # JSON: [{"keyword":"oi","response":"Olá!"}]
+    # Página de registro configurável
+    register_mode = db.Column(db.Integer, default=1)  # 1, 2 ou 3
+    register_headline = db.Column(db.Text)
+    register_subtitle = db.Column(db.Text)
+    register_bg_color = db.Column(db.Text)
+    register_bg_image_url = db.Column(db.Text)
+    register_presenter_photo_url = db.Column(db.Text)
+    register_bullets = db.Column(db.Text)  # JSON array de strings
+    register_button_text = db.Column(db.Text)
 
 
 class TimelineEvent(db.Model):
     __tablename__ = 'timeline_events'
-
     id = db.Column(db.Integer, primary_key=True)
     webinar_id = db.Column(db.Integer, db.ForeignKey('webinar_config.id'))
     trigger_second = db.Column(db.Integer)
-    event_type = db.Column(db.Text)  # 'chat' | 'cta_popup' | 'poll'
-    payload = db.Column(db.Text)     # JSON string
-
+    event_type = db.Column(db.Text)  # 'chat' | 'cta_popup' | 'poll' | 'purchase_notification' | 'end_broadcast'
+    payload = db.Column(db.Text)  # JSON string
     webinar = db.relationship('WebinarConfig', backref='events')
+
+
+class SupportMessage(db.Model):
+    __tablename__ = 'support_messages'
+    id = db.Column(db.Integer, primary_key=True)
+    registrant_id = db.Column(db.Integer, db.ForeignKey('registrants.id'))
+    webinar_id = db.Column(db.Integer)
+    message = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    answered = db.Column(db.Boolean, default=False)
+    registrant = db.relationship('Registrant', backref='support_messages')

@@ -1,3 +1,4 @@
+import json
 from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 from config import Config
@@ -5,12 +6,11 @@ from models import db
 
 
 def migrate_db(app):
-    """Adiciona colunas novas sem perder dados existentes."""
     with app.app_context():
         from sqlalchemy import text, inspect
         inspector = inspect(db.engine)
 
-        # Colunas para adicionar em webinar_config
+        # webinar_config novas colunas
         wc_cols = {c['name'] for c in inspector.get_columns('webinar_config')}
         wc_new = {
             'day_of_week': 'INTEGER DEFAULT 1',
@@ -20,12 +20,24 @@ def migrate_db(app):
             'webhook_token': 'TEXT',
             'test_date': 'TEXT',
             'slug': 'TEXT',
+            'offer_image_url': 'TEXT',
+            'offer_original_price': 'TEXT',
+            'offer_price': 'TEXT',
+            'chatbot_responses': 'TEXT',
+            'register_mode': 'INTEGER DEFAULT 1',
+            'register_headline': 'TEXT',
+            'register_subtitle': 'TEXT',
+            'register_bg_color': 'TEXT',
+            'register_bg_image_url': 'TEXT',
+            'register_presenter_photo_url': 'TEXT',
+            'register_bullets': 'TEXT',
+            'register_button_text': 'TEXT',
         }
         for col, typedef in wc_new.items():
             if col not in wc_cols:
                 db.session.execute(text(f'ALTER TABLE webinar_config ADD COLUMN {col} {typedef}'))
 
-        # Colunas para adicionar em registrants
+        # registrants novas colunas
         r_cols = {c['name'] for c in inspector.get_columns('registrants')}
         if 'webinar_id' not in r_cols:
             db.session.execute(text('ALTER TABLE registrants ADD COLUMN webinar_id INTEGER'))
@@ -36,14 +48,10 @@ def migrate_db(app):
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
-
-    # Necessário para Flask gerar URLs com https:// quando está atrás de proxy (EasyPanel/Nginx)
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
-    # Init database
     db.init_app(app)
 
-    # Register blueprints
     from routes.webhook import webhook_bp
     from routes.sala import sala_bp
     from routes.admin import admin_bp
@@ -54,7 +62,9 @@ def create_app():
     app.register_blueprint(admin_bp)
     app.register_blueprint(registrar_bp)
 
-    # Create tables (novas) + migrate colunas existentes
+    # Filtro Jinja2 from_json
+    app.jinja_env.filters['from_json'] = lambda s: json.loads(s) if s else []
+
     with app.app_context():
         db.create_all()
 

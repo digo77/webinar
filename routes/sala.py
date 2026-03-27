@@ -111,3 +111,24 @@ def track():
 
     db.session.commit()
     return jsonify({'ok': True})
+
+
+@sala_bp.route('/api/support', methods=['POST'])
+def support():
+    """Recebe mensagens de suporte do usuário durante a sala."""
+    from models import SupportMessage
+    data = request.get_json(silent=True)
+    if not data or not data.get('message'):
+        return jsonify({'error': 'no message'}), 400
+
+    registrant_id = session.get('registrant_id')
+    webinar_id = session.get('webinar_id')
+
+    msg = SupportMessage(
+        registrant_id=registrant_id,
+        webinar_id=webinar_id,
+        message=data['message']
+    )
+    db.session.add(msg)
+    db.session.commit()
+    return jsonify({'ok': True})

@@ -154,6 +154,19 @@ def webinar_edit(webinar_id):
     test_date_val = request.form.get('test_date', '').strip()
     webinar.test_date = test_date_val if test_date_val else None
 
+    webinar.offer_image_url = request.form.get('offer_image_url', webinar.offer_image_url)
+    webinar.offer_original_price = request.form.get('offer_original_price', webinar.offer_original_price)
+    webinar.offer_price = request.form.get('offer_price', webinar.offer_price)
+    webinar.chatbot_responses = request.form.get('chatbot_responses', webinar.chatbot_responses)
+    webinar.register_mode = int(request.form.get('register_mode', webinar.register_mode or 1))
+    webinar.register_headline = request.form.get('register_headline', webinar.register_headline)
+    webinar.register_subtitle = request.form.get('register_subtitle', webinar.register_subtitle)
+    webinar.register_bg_color = request.form.get('register_bg_color', webinar.register_bg_color)
+    webinar.register_bg_image_url = request.form.get('register_bg_image_url', webinar.register_bg_image_url)
+    webinar.register_presenter_photo_url = request.form.get('register_presenter_photo_url', webinar.register_presenter_photo_url)
+    webinar.register_bullets = request.form.get('register_bullets', webinar.register_bullets)
+    webinar.register_button_text = request.form.get('register_button_text', webinar.register_button_text)
+
     db.session.commit()
     return redirect(url_for('admin.webinar_detail', webinar_id=webinar_id))
 
@@ -418,6 +431,25 @@ def ai_timeline(webinar_id):
 
     # GET
     return render_template('admin/ai_timeline.html', webinar=webinar)
+
+
+@admin_bp.route('/webinar/<int:webinar_id>/support')
+@login_required
+def support_messages(webinar_id):
+    from models import SupportMessage
+    webinar = WebinarConfig.query.get_or_404(webinar_id)
+    messages = SupportMessage.query.filter_by(webinar_id=webinar_id).order_by(SupportMessage.created_at.desc()).all()
+    return render_template('admin/support.html', webinar=webinar, messages=messages)
+
+
+@admin_bp.route('/webinar/<int:webinar_id>/support/<int:msg_id>/answer', methods=['POST'])
+@login_required
+def support_answer(webinar_id, msg_id):
+    from models import SupportMessage
+    msg = SupportMessage.query.get_or_404(msg_id)
+    msg.answered = True
+    db.session.commit()
+    return redirect(url_for('admin.support_messages', webinar_id=webinar_id))
 
 
 @admin_bp.route('/ai-timeline/<int:webinar_id>/import', methods=['POST'])
