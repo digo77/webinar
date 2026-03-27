@@ -374,31 +374,41 @@ def ai_timeline(webinar_id):
     webinar = WebinarConfig.query.get_or_404(webinar_id)
 
     if request.method == 'POST':
-        audio_file = request.files.get('audio_file')
         product_context = request.form.get('product_context', '').strip()
+        mode = request.form.get('mode', 'audio')  # 'audio' ou 'text'
 
+        from services.ai_timeline import suggest_chat_events, transcribe_audio, parse_transcript_text
+
+        # ── Modo texto: transcrição colada ──────────────────────────────────
+        if mode == 'text':
+            transcript_text = request.form.get('transcript_text', '').strip()
+            if not transcript_text:
+                return jsonify({'error': 'Cole a transcrição antes de gerar.'}), 400
+            try:
+                segments = parse_transcript_text(transcript_text)
+                if not segments:
+                    return jsonify({'error': 'Nenhum timestamp encontrado no texto. Verifique o formato (ex: [0:45] texto).'}), 400
+                suggestions = suggest_chat_events(segments, product_context)
+                return jsonify({'ok': True, 'segments_count': len(segments), 'suggestions': suggestions})
+            except Exception as exc:
+                current_app.logger.exception('Erro no ai-timeline (text mode)')
+                return jsonify({'error': str(exc)}), 500
+
+        # ── Modo áudio: upload + Whisper ────────────────────────────────────
+        audio_file = request.files.get('audio_file')
         if not audio_file or not audio_file.filename:
             return jsonify({'error': 'Nenhum arquivo de áudio enviado.'}), 400
 
-        # Salva em arquivo temporário
         _, ext = os.path.splitext(audio_file.filename)
         tmp_fd, tmp_path = tempfile.mkstemp(suffix=ext or '.mp3')
         try:
             os.close(tmp_fd)
             audio_file.save(tmp_path)
-
-            from services.ai_timeline import suggest_chat_events, transcribe_audio
-
             segments = transcribe_audio(tmp_path)
             suggestions = suggest_chat_events(segments, product_context)
-
-            return jsonify({
-                'ok': True,
-                'segments_count': len(segments),
-                'suggestions': suggestions,
-            })
+            return jsonify({'ok': True, 'segments_count': len(segments), 'suggestions': suggestions})
         except Exception as exc:
-            current_app.logger.exception('Erro no ai-timeline')
+            current_app.logger.exception('Erro no ai-timeline (audio mode)')
             return jsonify({'error': str(exc)}), 500
         finally:
             try:

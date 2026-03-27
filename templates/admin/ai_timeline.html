@@ -9,20 +9,111 @@
             <a href="{{ url_for('admin.timeline_view', webinar_id=webinar.id) }}"
                class="text-gray-400 hover:text-white text-sm">&larr; Voltar à Timeline</a>
             <h1 class="text-2xl font-bold mt-1">✨ Gerar Timeline com IA</h1>
-            <p class="text-gray-400 text-sm">{{ webinar.name }} &mdash; {{ webinar.client_name }}</p>
+            <p class="text-gray-400 text-sm">{{ webinar.name }}{% if webinar.client_name %} &mdash; {{ webinar.client_name }}{% endif %}</p>
         </div>
     </div>
 
-    <!-- Formulário de upload -->
-    <div class="bg-gray-900 rounded-xl p-6 mb-6" id="upload-section">
-        <h2 class="text-lg font-semibold mb-1">1. Envie o áudio do webinário</h2>
-        <p class="text-gray-400 text-sm mb-4">MP3, MP4, WAV ou M4A · Máx 25 MB · O Whisper transcreve com timestamps</p>
+    <!-- Abas -->
+    <div class="flex gap-2 mb-6">
+        <button id="tab-text" onclick="switchTab('text')"
+                class="tab-btn px-5 py-2 rounded-lg text-sm font-semibold transition bg-cyan-600 text-white">
+            📝 Colar Transcrição
+        </button>
+        <button id="tab-audio" onclick="switchTab('audio')"
+                class="tab-btn px-5 py-2 rounded-lg text-sm font-semibold transition bg-gray-700 text-gray-300 hover:bg-gray-600">
+            🎙️ Upload de Áudio
+        </button>
+    </div>
+
+    <!-- ══ PAINEL: Colar Transcrição ══════════════════════════════════════ -->
+    <div id="panel-text" class="bg-gray-900 rounded-xl p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-1">Cole a transcrição com timestamps</h2>
+        <p class="text-gray-400 text-sm mb-4">
+            Aceita vários formatos — veja os exemplos abaixo. Você pode usar a saída de
+            qualquer ferramenta (Whisper CLI, YouTube, CapCut, etc.).
+        </p>
+
+        <!-- Exemplos de formato -->
+        <details class="mb-4">
+            <summary class="text-cyan-400 text-sm cursor-pointer hover:text-cyan-300 select-none">
+                Ver formatos aceitos
+            </summary>
+            <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                <div class="bg-gray-800 rounded-lg p-3">
+                    <p class="text-gray-400 mb-1 font-semibold">Bracket mm:ss</p>
+                    <pre class="text-green-400 whitespace-pre-wrap">[0:45] Chef apresenta a receita
+[1:30] Público reage com surpresa
+[3:00] Apresentação do produto</pre>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-3">
+                    <p class="text-gray-400 mb-1 font-semibold">Simples mm:ss</p>
+                    <pre class="text-green-400 whitespace-pre-wrap">0:45 Chef apresenta a receita
+1:30 Público reage com surpresa
+3:00 Apresentação do produto</pre>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-3">
+                    <p class="text-gray-400 mb-1 font-semibold">Formato SRT (legenda)</p>
+                    <pre class="text-green-400 whitespace-pre-wrap">1
+00:00:45,000 --> 00:00:50,000
+Chef apresenta a receita
+
+2
+00:01:30,000 --> 00:01:35,000
+Público reage com surpresa</pre>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-3">
+                    <p class="text-gray-400 mb-1 font-semibold">Whisper CLI (verbose)</p>
+                    <pre class="text-green-400 whitespace-pre-wrap">[00:00:45.000 --> 00:00:50.000]
+Chef apresenta a receita
+[00:01:30.000 --> 00:01:35.000]
+Público reage com surpresa</pre>
+                </div>
+            </div>
+        </details>
 
         <div class="space-y-4">
             <div>
-                <label class="text-sm text-gray-400">Arquivo de áudio</label>
+                <label class="text-sm text-gray-400 block mb-1">Transcrição com timestamps</label>
+                <textarea id="transcript-text" rows="12"
+                          placeholder="[0:00] Olá pessoal, bem-vindos à aula de hoje!
+[0:15] Hoje vou mostrar pra vocês uma receita que mudou minha vida...
+[1:00] Esse é o Cookie Sandwich, minha criação especial
+[2:30] Olha só como fica crocante por fora e macio por dentro
+[5:00] Agora vou falar sobre o Cookie Academy Plus..."
+                          class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-500 text-sm font-mono leading-relaxed"></textarea>
+                <p class="text-gray-600 text-xs mt-1" id="segments-preview"></p>
+            </div>
+
+            <div>
+                <label class="text-sm text-gray-400 block mb-1">
+                    Contexto do produto e objetivo
+                    <span class="text-gray-600 ml-1">(ajuda a IA a gerar mensagens mais relevantes)</span>
+                </label>
+                <textarea id="product-context-text" rows="2"
+                          placeholder="ex: Cookie Sandwich do Chef Áureo. Webinário de upsell para o Cookie Academy Plus, curso avançado de confeitaria. Público: confeiteiras iniciantes e intermediárias apaixonadas por doces."
+                          class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-500 text-sm"></textarea>
+            </div>
+
+            <button onclick="generateFromText()"
+                    class="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold px-6 py-2 rounded-lg transition flex items-center gap-2">
+                <span>✨</span> Gerar Timeline com IA
+            </button>
+        </div>
+    </div>
+
+    <!-- ══ PAINEL: Upload de Áudio ════════════════════════════════════════ -->
+    <div id="panel-audio" class="bg-gray-900 rounded-xl p-6 mb-6 hidden">
+        <h2 class="text-lg font-semibold mb-1">Envie o áudio do webinário</h2>
+        <p class="text-gray-400 text-sm mb-4">
+            MP3, MP4, WAV ou M4A · Máx 25 MB · O Whisper transcreve automaticamente com timestamps.
+            <br><span class="text-yellow-500">Requer OPENAI_API_KEY configurada no servidor.</span>
+        </p>
+
+        <div class="space-y-4">
+            <div>
+                <label class="text-sm text-gray-400 block mb-1">Arquivo de áudio</label>
                 <input type="file" id="audio-file" accept=".mp3,.mp4,.wav,.m4a,.ogg,.webm"
-                       class="block mt-1 text-sm text-gray-300
+                       class="block text-sm text-gray-300
                               file:mr-4 file:py-2 file:px-4
                               file:rounded-lg file:border-0
                               file:text-sm file:font-semibold
@@ -30,19 +121,16 @@
                               hover:file:bg-blue-700 cursor-pointer">
             </div>
             <div>
-                <label class="text-sm text-gray-400">
+                <label class="text-sm text-gray-400 block mb-1">
                     Contexto do produto e objetivo
-                    <span class="text-gray-600 ml-1">(ajuda a IA a gerar mensagens relevantes)</span>
                 </label>
-                <textarea id="product-context" rows="3"
-                          placeholder="ex: Cookie Sandwich do Chef Áureo. Este webinário apresenta a receita e faz upsell para o Cookie Academy Plus, curso avançado de confeitaria. Público: confeiteiras e apaixonadas por doces."
-                          class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500 text-sm"></textarea>
+                <textarea id="product-context-audio" rows="2"
+                          placeholder="ex: Cookie Sandwich do Chef Áureo, upsell para o Cookie Academy Plus, curso avançado de confeitaria."
+                          class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm"></textarea>
             </div>
-            <button id="btn-generate"
-                    onclick="generateTimeline()"
-                    class="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold px-6 py-2 rounded-lg transition flex items-center gap-2">
-                <span id="btn-icon">✨</span>
-                <span id="btn-text">Gerar Timeline com IA</span>
+            <button onclick="generateFromAudio()"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition flex items-center gap-2">
+                <span>🎙️</span> Transcrever e Gerar com IA
             </button>
         </div>
     </div>
@@ -50,22 +138,22 @@
     <!-- Estado de carregamento -->
     <div id="loading-section" class="hidden bg-gray-900 rounded-xl p-8 text-center mb-6">
         <div class="inline-block w-10 h-10 border-4 border-cyan-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p class="text-lg font-semibold text-white">Processando áudio...</p>
-        <p class="text-gray-400 text-sm mt-1" id="loading-status">Transcrevendo com Whisper</p>
+        <p class="text-lg font-semibold text-white" id="loading-title">Processando...</p>
+        <p class="text-gray-400 text-sm mt-1" id="loading-status">Aguarde</p>
     </div>
 
-    <!-- Mensagem de erro -->
+    <!-- Erro -->
     <div id="error-section" class="hidden bg-red-900/40 border border-red-700 rounded-xl p-4 mb-6">
         <p class="text-red-300 font-semibold">Erro ao processar</p>
         <p class="text-red-400 text-sm mt-1" id="error-message"></p>
     </div>
 
-    <!-- Resultados / sugestões -->
+    <!-- Resultados -->
     <div id="results-section" class="hidden">
         <div class="bg-gray-900 rounded-xl p-6 mb-4">
             <div class="flex items-center justify-between mb-4">
                 <div>
-                    <h2 class="text-lg font-semibold">2. Selecione as mensagens para importar</h2>
+                    <h2 class="text-lg font-semibold">Selecione as mensagens para importar</h2>
                     <p class="text-gray-400 text-sm mt-1" id="results-meta"></p>
                 </div>
                 <div class="flex gap-3">
@@ -75,13 +163,11 @@
                             class="text-gray-400 hover:text-gray-300 text-sm">Desmarcar</button>
                 </div>
             </div>
-
             <div id="suggestions-list" class="space-y-2 max-h-[600px] overflow-y-auto pr-1"></div>
         </div>
 
         <div class="flex items-center gap-4">
-            <button id="btn-import"
-                    onclick="importSelected()"
+            <button id="btn-import" onclick="importSelected()"
                     class="bg-green-600 hover:bg-green-700 text-white font-semibold px-8 py-3 rounded-lg transition">
                 Importar selecionadas
             </button>
@@ -94,54 +180,105 @@
 <script>
 const WEBINAR_ID = {{ webinar.id }};
 let allSuggestions = [];
+let currentTab = 'text';
 
-async function generateTimeline() {
-    const file = document.getElementById('audio-file').files[0];
-    const context = document.getElementById('product-context').value.trim();
+// ── Troca de abas ──────────────────────────────────────────────────────────
+function switchTab(tab) {
+    currentTab = tab;
+    document.getElementById('panel-text').classList.toggle('hidden', tab !== 'text');
+    document.getElementById('panel-audio').classList.toggle('hidden', tab !== 'audio');
 
-    if (!file) {
-        alert('Selecione um arquivo de áudio primeiro.');
-        return;
+    document.getElementById('tab-text').className =
+        'tab-btn px-5 py-2 rounded-lg text-sm font-semibold transition ' +
+        (tab === 'text' ? 'bg-cyan-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600');
+    document.getElementById('tab-audio').className =
+        'tab-btn px-5 py-2 rounded-lg text-sm font-semibold transition ' +
+        (tab === 'audio' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600');
+}
+
+// ── Preview de segmentos ao digitar ───────────────────────────────────────
+document.getElementById('transcript-text').addEventListener('input', function() {
+    const lines = this.value.split('\n');
+    const timestamps = lines.filter(l => /\[?\d{1,2}:\d{2}/.test(l)).length;
+    const el = document.getElementById('segments-preview');
+    if (timestamps > 0) {
+        el.textContent = `✅ ${timestamps} linha(s) com timestamp detectada(s)`;
+        el.className = 'text-green-500 text-xs mt-1';
+    } else if (this.value.trim()) {
+        el.textContent = '⚠️ Nenhum timestamp detectado ainda — verifique o formato';
+        el.className = 'text-yellow-500 text-xs mt-1';
+    } else {
+        el.textContent = '';
     }
+});
 
-    // UI: loading
-    document.getElementById('upload-section').classList.add('opacity-50', 'pointer-events-none');
-    document.getElementById('loading-section').classList.remove('hidden');
-    document.getElementById('error-section').classList.add('hidden');
-    document.getElementById('results-section').classList.add('hidden');
-    document.getElementById('btn-generate').disabled = true;
+// ── Gerar a partir de texto ───────────────────────────────────────────────
+async function generateFromText() {
+    const transcript = document.getElementById('transcript-text').value.trim();
+    const context = document.getElementById('product-context-text').value.trim();
+    if (!transcript) { alert('Cole a transcrição antes de gerar.'); return; }
 
     const formData = new FormData();
+    formData.append('mode', 'text');
+    formData.append('transcript_text', transcript);
+    formData.append('product_context', context);
+
+    setLoading(true, 'Analisando transcrição...', 'O Claude está lendo o conteúdo e sugerindo mensagens');
+    try {
+        const resp = await fetch(`/admin/ai-timeline/${WEBINAR_ID}`, { method: 'POST', body: formData });
+        const data = await resp.json();
+        if (!resp.ok || data.error) throw new Error(data.error || 'Erro desconhecido');
+        allSuggestions = data.suggestions || [];
+        renderSuggestions(allSuggestions, data.segments_count);
+    } catch(err) {
+        showError(err.message);
+    } finally {
+        setLoading(false);
+    }
+}
+
+// ── Gerar a partir de áudio ───────────────────────────────────────────────
+async function generateFromAudio() {
+    const file = document.getElementById('audio-file').files[0];
+    const context = document.getElementById('product-context-audio').value.trim();
+    if (!file) { alert('Selecione um arquivo de áudio primeiro.'); return; }
+
+    const formData = new FormData();
+    formData.append('mode', 'audio');
     formData.append('audio_file', file);
     formData.append('product_context', context);
 
+    setLoading(true, 'Transcrevendo áudio...', 'Enviando para o Whisper — pode levar alguns minutos');
     try {
-        document.getElementById('loading-status').textContent = 'Transcrevendo com Whisper...';
-
-        const resp = await fetch(`/admin/ai-timeline/${WEBINAR_ID}`, {
-            method: 'POST',
-            body: formData,
-        });
+        const resp = await fetch(`/admin/ai-timeline/${WEBINAR_ID}`, { method: 'POST', body: formData });
 
         document.getElementById('loading-status').textContent = 'Gerando sugestões com Claude...';
 
         const data = await resp.json();
-
-        if (!resp.ok || data.error) {
-            throw new Error(data.error || 'Erro desconhecido');
-        }
-
+        if (!resp.ok || data.error) throw new Error(data.error || 'Erro desconhecido');
         allSuggestions = data.suggestions || [];
         renderSuggestions(allSuggestions, data.segments_count);
-
-    } catch (err) {
-        document.getElementById('error-section').classList.remove('hidden');
-        document.getElementById('error-message').textContent = err.message;
+    } catch(err) {
+        showError(err.message);
     } finally {
-        document.getElementById('loading-section').classList.add('hidden');
-        document.getElementById('upload-section').classList.remove('opacity-50', 'pointer-events-none');
-        document.getElementById('btn-generate').disabled = false;
+        setLoading(false);
     }
+}
+
+// ── Helpers de UI ─────────────────────────────────────────────────────────
+function setLoading(on, title = '', status = '') {
+    document.getElementById('loading-section').classList.toggle('hidden', !on);
+    document.getElementById('results-section').classList.add('hidden');
+    document.getElementById('error-section').classList.add('hidden');
+    if (on) {
+        document.getElementById('loading-title').textContent = title;
+        document.getElementById('loading-status').textContent = status;
+    }
+}
+
+function showError(msg) {
+    document.getElementById('error-section').classList.remove('hidden');
+    document.getElementById('error-message').textContent = msg;
 }
 
 function fmtTime(sec) {
@@ -150,21 +287,28 @@ function fmtTime(sec) {
     return `${m}:${s}`;
 }
 
+function escHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function renderSuggestions(suggestions, segCount) {
     document.getElementById('results-section').classList.remove('hidden');
     document.getElementById('results-meta').textContent =
-        `${suggestions.length} sugestões geradas a partir de ${segCount || '?'} segmentos de transcrição`;
+        `${suggestions.length} sugestões geradas a partir de ${segCount || '?'} segmentos`;
 
     const list = document.getElementById('suggestions-list');
     list.innerHTML = '';
-
-    suggestions.forEach((s, i) => {
+    suggestions.forEach((s) => {
         const div = document.createElement('div');
-        div.className = 'flex items-start gap-3 bg-gray-800/40 rounded-lg px-4 py-3 hover:bg-gray-800/70 transition cursor-pointer';
+        div.className = 'flex items-start gap-3 bg-gray-800/40 rounded-lg px-4 py-3 hover:bg-gray-800/70 transition cursor-pointer ring-1 ring-cyan-600';
         div.onclick = () => {
             const cb = div.querySelector('input[type=checkbox]');
             cb.checked = !cb.checked;
-            div.classList.toggle('ring-1 ring-cyan-600', cb.checked);
+            div.classList.toggle('ring-1', cb.checked);
+            div.classList.toggle('ring-cyan-600', cb.checked);
+            div.classList.toggle('opacity-50', !cb.checked);
         };
         div.innerHTML = `
             <input type="checkbox" checked class="mt-1 shrink-0 accent-cyan-500" onclick="event.stopPropagation()">
@@ -178,34 +322,32 @@ function renderSuggestions(suggestions, segCount) {
                     ${s.reason ? `<p class="text-gray-500 text-xs mt-0.5 italic">${escHtml(s.reason)}</p>` : ''}
                 </div>
             </div>`;
-        div.classList.add('ring-1', 'ring-cyan-600');
         list.appendChild(div);
     });
 }
 
 function selectAll(state) {
-    document.querySelectorAll('#suggestions-list input[type=checkbox]').forEach(cb => {
+    document.querySelectorAll('#suggestions-list > div').forEach(div => {
+        const cb = div.querySelector('input[type=checkbox]');
         cb.checked = state;
-        cb.closest('.flex').classList.toggle('ring-1', state);
-        cb.closest('.flex').classList.toggle('ring-cyan-600', state);
+        div.classList.toggle('ring-1', state);
+        div.classList.toggle('ring-cyan-600', state);
+        div.classList.toggle('opacity-50', !state);
     });
 }
 
 async function importSelected() {
-    const checkboxes = document.querySelectorAll('#suggestions-list input[type=checkbox]');
+    const divs = document.querySelectorAll('#suggestions-list > div');
     const selected = [];
-    checkboxes.forEach((cb, i) => {
-        if (cb.checked && allSuggestions[i]) selected.push(allSuggestions[i]);
+    divs.forEach((div, i) => {
+        if (div.querySelector('input[type=checkbox]').checked && allSuggestions[i]) {
+            selected.push(allSuggestions[i]);
+        }
     });
-
-    if (!selected.length) {
-        alert('Selecione pelo menos uma sugestão.');
-        return;
-    }
+    if (!selected.length) { alert('Selecione pelo menos uma sugestão.'); return; }
 
     document.getElementById('btn-import').disabled = true;
     document.getElementById('import-status').textContent = 'Importando...';
-
     try {
         const resp = await fetch(`/admin/ai-timeline/${WEBINAR_ID}/import`, {
             method: 'POST',
@@ -214,26 +356,15 @@ async function importSelected() {
         });
         const data = await resp.json();
         if (data.ok) {
-            document.getElementById('import-status').textContent =
-                `✅ ${data.created} eventos criados!`;
-            setTimeout(() => {
-                window.location.href = `/admin/timeline/${WEBINAR_ID}`;
-            }, 1200);
+            document.getElementById('import-status').textContent = `✅ ${data.created} eventos criados!`;
+            setTimeout(() => { window.location.href = `/admin/timeline/${WEBINAR_ID}`; }, 1200);
         } else {
             throw new Error(data.error || 'Falha na importação');
         }
-    } catch (err) {
+    } catch(err) {
         document.getElementById('import-status').textContent = `❌ ${err.message}`;
         document.getElementById('btn-import').disabled = false;
     }
-}
-
-function escHtml(str) {
-    return String(str || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
 }
 </script>
 {% endblock %}

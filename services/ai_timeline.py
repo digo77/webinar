@@ -1,10 +1,113 @@
 """
 Gerador de timeline com IA.
 - Transcreve áudio via OpenAI Whisper (com timestamps)
+- Parseia transcrição colada em texto com timestamps
 - Sugere mensagens de chat via Claude (Anthropic)
 """
 import os
+import re
 import json
+
+
+def parse_transcript_text(text: str) -> list:
+    """
+    Parseia texto de transcrição colado pelo usuário.
+    Suporta múltiplos formatos:
+      - [0:45] texto          (bracket mm:ss)
+      - [1:23:45] texto       (bracket hh:mm:ss)
+      - 0:45 texto            (sem bracket)
+      - 00:00:45,000 --> ...  (SRT/VTT — usa o tempo de início)
+      - (45s) texto           (segundos com s)
+      - 45: texto             (segundos puro)
+    Retorna: [{'second': int, 'text': str}, ...]
+    """
+    segments = []
+    lines = text.strip().splitlines()
+
+    # Regex para cada formato
+    patterns = [
+        # SRT/VTT: 00:01:23,456 --> 00:01:30,000  ou  00:01:23.456 --> ...
+        (re.compile(r'(\d{1,2}):(\d{2}):(\d{2})[,.](\d+)\s*-->'), 'srt'),
+        # [hh:mm:ss] ou [mm:ss]
+        (re.compile(r'^\[(\d{1,2}):(\d{2})(?::(\d{2}))?\]\s*(.*)'), 'bracket'),
+        # mm:ss texto (sem bracket, no início da linha)
+        (re.compile(r'^(\d{1,2}):(\d{2})(?::(\d{2}))?\s+(.+)'), 'plain'),
+        # (45s) texto
+        (re.compile(r'^\((\d+)s\)\s*(.*)'), 'sec_paren'),
+        # 45: texto
+        (re.compile(r'^(\d+):\s+(.+)'), 'sec_colon'),
+    ]
+
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        if not line:
+            i += 1
+            continue
+
+        matched = False
+
+        # SRT: linha de timestamps, texto vem na próxima linha
+        m = patterns[0][0].match(line)
+        if m:
+            h, mm, ss = int(m.group(1)), int(m.group(2)), int(m.group(3))
+            second = h * 3600 + mm * 60 + ss
+            # Próxima linha(s) são o texto
+            text_parts = []
+            i += 1
+            while i < len(lines) and lines[i].strip() and not re.match(r'^\d+$', lines[i].strip()):
+                next_line = lines[i].strip()
+                if re.match(r'\d{1,2}:\d{2}:\d{2}[,.]', next_line):
+                    break
+                text_parts.append(next_line)
+                i += 1
+            if text_parts:
+                segments.append({'second': second, 'text': ' '.join(text_parts)})
+            continue
+
+        # [mm:ss] ou [hh:mm:ss]
+        m = patterns[1][0].match(line)
+        if m:
+            p1, p2, p3, txt = m.group(1), m.group(2), m.group(3), m.group(4)
+            if p3 is not None:
+                second = int(p1) * 3600 + int(p2) * 60 + int(p3)
+            else:
+                second = int(p1) * 60 + int(p2)
+            if txt.strip():
+                segments.append({'second': second, 'text': txt.strip()})
+            matched = True
+
+        if not matched:
+            # mm:ss texto
+            m = patterns[2][0].match(line)
+            if m:
+                p1, p2, p3, txt = m.group(1), m.group(2), m.group(3), m.group(4)
+                if p3 is not None:
+                    second = int(p1) * 3600 + int(p2) * 60 + int(p3)
+                else:
+                    second = int(p1) * 60 + int(p2)
+                segments.append({'second': second, 'text': txt.strip()})
+                matched = True
+
+        if not matched:
+            # (45s) texto
+            m = patterns[3][0].match(line)
+            if m:
+                segments.append({'second': int(m.group(1)), 'text': m.group(2).strip()})
+                matched = True
+
+        if not matched:
+            # 45: texto
+            m = patterns[4][0].match(line)
+            if m:
+                segments.append({'second': int(m.group(1)), 'text': m.group(2).strip()})
+
+        i += 1
+
+    # Ordena por segundo e remove duplicatas de segundo vazio
+    segments = [s for s in segments if s['text']]
+    segments.sort(key=lambda x: x['second'])
+    return segments
 
 
 def transcribe_audio(file_path: str) -> list:
