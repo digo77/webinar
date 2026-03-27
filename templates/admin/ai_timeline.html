@@ -73,7 +73,17 @@ Público reage com surpresa</pre>
 
         <div class="space-y-4">
             <div>
-                <label class="text-sm text-gray-400 block mb-1">Transcrição com timestamps</label>
+                <div class="flex items-center justify-between mb-1">
+                    <label class="text-sm text-gray-400">Transcrição com timestamps</label>
+                    <!-- Upload de arquivo SRT/VTT/TXT -->
+                    <label class="cursor-pointer flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M12 12V4m0 0L8 8m4-4l4 4"/>
+                        </svg>
+                        Importar arquivo .srt / .vtt / .txt
+                        <input type="file" id="srt-file" accept=".srt,.vtt,.txt,.csv" class="hidden" onchange="loadTranscriptFile(this)">
+                    </label>
+                </div>
                 <textarea id="transcript-text" rows="12"
                           placeholder="[0:00] Olá pessoal, bem-vindos à aula de hoje!
 [0:15] Hoje vou mostrar pra vocês uma receita que mudou minha vida...
@@ -181,6 +191,22 @@ Público reage com surpresa</pre>
 const WEBINAR_ID = {{ webinar.id }};
 let allSuggestions = [];
 let currentTab = 'text';
+
+// ── Carrega arquivo SRT/VTT/TXT na textarea ───────────────────────────────
+function loadTranscriptFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        document.getElementById('transcript-text').value = e.target.result;
+        // Dispara o evento input para atualizar o contador de segmentos
+        document.getElementById('transcript-text').dispatchEvent(new Event('input'));
+    };
+    reader.onerror = () => alert('Erro ao ler o arquivo.');
+    reader.readAsText(file, 'UTF-8');
+    // Limpa o input para permitir recarregar o mesmo arquivo se necessário
+    input.value = '';
+}
 
 // ── Troca de abas ──────────────────────────────────────────────────────────
 function switchTab(tab) {
