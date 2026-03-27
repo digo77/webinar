@@ -148,7 +148,13 @@ def suggest_chat_events(transcript_segments: list, product_context: str) -> list
     """
     import anthropic as anthropic_sdk
 
-    client = anthropic_sdk.Anthropic(api_key=os.environ.get('ANTHROPIC_API_KEY', ''))
+    api_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
+    if not api_key:
+        raise ValueError(
+            'ANTHROPIC_API_KEY não configurada. '
+            'Adicione a variável de ambiente no EasyPanel (serviço → Environment Variables).'
+        )
+    client = anthropic_sdk.Anthropic(api_key=api_key)
 
     # Monta transcrição com timestamps
     if transcript_segments:
