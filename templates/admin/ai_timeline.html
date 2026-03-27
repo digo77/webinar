@@ -321,9 +321,10 @@ async function generateFromAudio() {
 // ── Helpers de UI ─────────────────────────────────────────────────────────
 function setLoading(on, title = '', status = '') {
     document.getElementById('loading-section').classList.toggle('hidden', !on);
-    document.getElementById('results-section').classList.add('hidden');
-    document.getElementById('error-section').classList.add('hidden');
     if (on) {
+        // Só esconde resultados/erro quando INICIA o loading
+        document.getElementById('results-section').classList.add('hidden');
+        document.getElementById('error-section').classList.add('hidden');
         document.getElementById('loading-title').textContent = title;
         document.getElementById('loading-status').textContent = status;
     }
