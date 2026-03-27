@@ -205,11 +205,17 @@ def timeline_add(webinar_id):
             'countdown_minutes': int(request.form.get('countdown_minutes', 15)),
             'url': request.form.get('url', ''),
         })
+    elif event_type == 'purchase_notification':
+        names_raw = request.form.get('purchase_names', '')
+        names = [n.strip() for n in names_raw.split(',') if n.strip()]
+        payload = json.dumps({'names': names})
     elif event_type == 'poll':
         question = request.form.get('question', '')
         options_raw = request.form.get('options', '')
         options = [o.strip() for o in options_raw.split(',') if o.strip()]
         payload = json.dumps({'question': question, 'options': options})
+    elif event_type == 'end_broadcast':
+        payload = json.dumps({})
     else:
         payload = request.form.get('payload', '{}')
 

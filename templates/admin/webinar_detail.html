@@ -1,315 +1,473 @@
 {% extends "base.html" %}
-{% block title %}Admin - {{ webinar.name }}{% endblock %}
+{% block title %}Admin — {{ webinar.name }}{% endblock %}
+
+{% block head %}
+<style>
+    .adm-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+    .adm-section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+    .adm-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; }
+    .adm-input {
+        width: 100%; background: var(--bg-elevated); border: 1.5px solid var(--border);
+        border-radius: 8px; padding: 9px 12px; color: var(--text-primary);
+        font-size: 13px; font-family: 'Inter', sans-serif; outline: none;
+        transition: border-color .15s;
+    }
+    .adm-input:focus { border-color: var(--accent-gold); }
+    .adm-input::placeholder { color: var(--text-muted); }
+    .adm-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23606078' d='M1 1l5 5 5-5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; cursor: pointer; }
+    .adm-btn { border: none; border-radius: 8px; padding: 9px 20px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; transition: opacity .15s; }
+    .adm-btn-gold { background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light)); color: #0a0a0f; }
+    .adm-btn-gold:hover { opacity: .88; }
+    .adm-btn-ghost { background: var(--bg-elevated); color: var(--text-secondary); border: 1px solid var(--border); }
+    .adm-btn-ghost:hover { color: #fff; border-color: #555; }
+    .adm-btn-danger { background: rgba(239,68,68,.12); color: #f87171; border: 1px solid rgba(239,68,68,.3); }
+    .adm-btn-danger:hover { background: rgba(239,68,68,.22); }
+    .stat-card { background: var(--bg-elevated); border-radius: 10px; padding: 16px 20px; }
+    .nav-link { padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; transition: background .15s; }
+    .ev-badge { border-radius: 20px; padding: 2px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    @media (max-width: 768px) { .grid-2,.grid-3,.grid-4 { grid-template-columns: 1fr; } }
+    /* Tabs */
+    .cfg-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+    .cfg-tab { padding: 8px 16px; font-size: 13px; font-weight: 600; border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; color: var(--text-muted); font-family: 'Inter', sans-serif; transition: color .15s; }
+    .cfg-tab.active { color: var(--accent-gold); border-bottom-color: var(--accent-gold); }
+    .cfg-panel { display: none; }
+    .cfg-panel.active { display: block; }
+</style>
+{% endblock %}
+
 {% block body %}
-<div class="max-w-6xl mx-auto p-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-8">
+<div style="max-width:1100px;margin:0 auto;padding:24px 16px">
+
+    <!-- ── Header ──────────────────────────────────────────────────── -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:24px">
         <div>
-            <a href="{{ url_for('admin.dashboard') }}" class="text-gray-400 hover:text-white text-sm">&larr; Voltar</a>
-            <h1 class="text-2xl font-bold mt-1">{{ webinar.name or 'Sem nome' }}</h1>
-            <p class="text-gray-400 text-sm">Cliente: {{ webinar.client_name or '-' }}</p>
+            <a href="{{ url_for('admin.dashboard') }}" style="font-size:13px;color:var(--text-muted);text-decoration:none">← Dashboard</a>
+            <h1 style="font-size:22px;font-weight:800;margin:4px 0 2px">{{ webinar.name or 'Sem nome' }}</h1>
+            <p style="color:var(--text-muted);font-size:13px">{{ webinar.client_name or 'sem cliente' }} · ID {{ webinar.id }}</p>
         </div>
-        <div class="flex gap-3 flex-wrap">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
             <a href="{{ url_for('admin.timeline_view', webinar_id=webinar.id) }}"
-               class="bg-purple-700 hover:bg-purple-600 px-4 py-2 rounded-lg text-sm transition">Timeline Visual</a>
+               class="nav-link" style="background:rgba(168,85,247,.15);color:#c084fc;border:1px solid rgba(168,85,247,.3)">Timeline</a>
             <a href="{{ url_for('admin.ai_timeline', webinar_id=webinar.id) }}"
-               class="bg-cyan-700 hover:bg-cyan-600 px-4 py-2 rounded-lg text-sm transition">IA Timeline</a>
+               class="nav-link" style="background:rgba(6,182,212,.12);color:#22d3ee;border:1px solid rgba(6,182,212,.25)">IA Timeline</a>
+            <a href="{{ url_for('admin.support_messages', webinar_id=webinar.id) }}"
+               class="nav-link" style="background:rgba(34,197,94,.12);color:#4ade80;border:1px solid rgba(34,197,94,.25)">Suporte</a>
             <a href="{{ url_for('admin.test_token', webinar_id=webinar.id) }}" target="_blank"
-               class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-sm transition">Testar Sala</a>
-            <a href="{{ url_for('admin.logout') }}" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition">Sair</a>
+               class="nav-link" style="background:linear-gradient(135deg,var(--accent-gold),var(--accent-gold-light));color:#0a0a0f">▶ Testar Sala</a>
         </div>
     </div>
 
-    <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div class="bg-gray-900 rounded-xl p-6">
-            <p class="text-gray-400 text-sm mb-1">Registrados</p>
-            <p class="text-3xl font-bold">{{ stats.total }}</p>
+    <!-- ── Stats ───────────────────────────────────────────────────── -->
+    <div class="grid-3" style="margin-bottom:20px">
+        <div class="stat-card">
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Registrados</p>
+            <p style="font-size:28px;font-weight:800">{{ stats.total }}</p>
         </div>
-        <div class="bg-gray-900 rounded-xl p-6">
-            <p class="text-gray-400 text-sm mb-1">Assistiram</p>
-            <p class="text-3xl font-bold text-green-400">{{ stats.attended }}</p>
+        <div class="stat-card">
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Assistiram</p>
+            <p style="font-size:28px;font-weight:800;color:var(--success)">{{ stats.attended }}</p>
         </div>
-        <div class="bg-gray-900 rounded-xl p-6">
-            <p class="text-gray-400 text-sm mb-1">Clicaram no CTA</p>
-            <p class="text-3xl font-bold text-yellow-400">{{ stats.clicked_cta }}</p>
+        <div class="stat-card">
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Clicaram CTA</p>
+            <p style="font-size:28px;font-weight:800;color:var(--accent-gold)">{{ stats.clicked_cta }}</p>
         </div>
     </div>
 
-    <!-- Links de acesso -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        <!-- Página de Registro -->
-        <div class="bg-gray-900 rounded-xl p-4 flex items-center justify-between">
-            <div>
-                <span class="text-gray-400 text-sm">Página de Registro:</span>
+    <!-- ── Links ───────────────────────────────────────────────────── -->
+    <div class="grid-2" style="margin-bottom:20px">
+        <div class="stat-card" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <div style="min-width:0">
+                <p style="font-size:11px;color:var(--text-muted);margin-bottom:3px">Página de Registro</p>
                 {% if webinar.slug %}
-                <code class="ml-2 text-yellow-400 text-sm bg-gray-800 px-3 py-1 rounded">/registrar?w={{ webinar.slug }}</code>
+                <code style="font-size:12px;color:var(--accent-gold);word-break:break-all">/registrar?w={{ webinar.slug }}</code>
                 {% else %}
-                <span class="ml-2 text-gray-600 text-sm italic">slug não definido</span>
+                <span style="font-size:12px;color:var(--text-muted);font-style:italic">slug não definido</span>
                 {% endif %}
             </div>
             {% if webinar.slug %}
-            <div class="flex gap-2">
-                <a href="/registrar?w={{ webinar.slug }}" target="_blank"
-                   class="text-yellow-400 hover:text-yellow-300 text-sm">Abrir</a>
-                <button onclick="navigator.clipboard.writeText(location.origin + '/registrar?w={{ webinar.slug }}')"
-                        class="text-blue-400 hover:text-blue-300 text-sm">Copiar</button>
+            <div style="display:flex;gap:6px;flex-shrink:0">
+                <a href="/registrar?w={{ webinar.slug }}" target="_blank" class="adm-btn adm-btn-ghost" style="padding:5px 12px;font-size:12px">Abrir</a>
+                <button onclick="navigator.clipboard.writeText(location.origin+'/registrar?w={{ webinar.slug }}')" class="adm-btn adm-btn-ghost" style="padding:5px 12px;font-size:12px">Copiar</button>
             </div>
             {% endif %}
         </div>
-        <!-- Webhook Hotmart -->
-        <div class="bg-gray-900 rounded-xl p-4 flex items-center justify-between">
-            <div>
-                <span class="text-gray-400 text-sm">Webhook Hotmart:</span>
-                <code class="ml-2 text-green-400 text-sm bg-gray-800 px-3 py-1 rounded">/webhook/hotmart/{{ webinar.webhook_token }}</code>
+        <div class="stat-card" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <div style="min-width:0">
+                <p style="font-size:11px;color:var(--text-muted);margin-bottom:3px">Webhook Hotmart</p>
+                <code style="font-size:11px;color:#4ade80;word-break:break-all">/webhook/hotmart/{{ webinar.webhook_token }}</code>
             </div>
-            <button onclick="navigator.clipboard.writeText(location.origin + '/webhook/hotmart/{{ webinar.webhook_token }}')"
-                    class="text-blue-400 hover:text-blue-300 text-sm">Copiar</button>
+            <button onclick="navigator.clipboard.writeText(location.origin+'/webhook/hotmart/{{ webinar.webhook_token }}')" class="adm-btn adm-btn-ghost" style="padding:5px 12px;font-size:12px;flex-shrink:0">Copiar</button>
         </div>
     </div>
 
-    <!-- Editar Configuracao -->
-    <div class="bg-gray-900 rounded-xl p-6 mb-8">
-        <h2 class="text-lg font-semibold mb-4">Configuracao</h2>
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- CONFIGURAÇÃO (abas) -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="adm-card">
         <form method="POST" action="{{ url_for('admin.webinar_edit', webinar_id=webinar.id) }}">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                <div>
-                    <label class="text-sm text-gray-400">Nome do Webinario</label>
-                    <input type="text" name="name" value="{{ webinar.name or '' }}"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+
+            <!-- Abas de configuração -->
+            <div class="cfg-tabs">
+                <button type="button" class="cfg-tab active" onclick="showTab('geral')">⚙️ Geral</button>
+                <button type="button" class="cfg-tab" onclick="showTab('oferta')">🔥 Oferta</button>
+                <button type="button" class="cfg-tab" onclick="showTab('chatbot')">🤖 Chatbot</button>
+                <button type="button" class="cfg-tab" onclick="showTab('registro')">📋 Registro</button>
+            </div>
+
+            <!-- ── Aba GERAL ── -->
+            <div class="cfg-panel active" id="tab-geral">
+                <div class="grid-4" style="margin-bottom:14px">
+                    <div>
+                        <label class="adm-label">Nome do webinário</label>
+                        <input class="adm-input" type="text" name="name" value="{{ webinar.name or '' }}" placeholder="Ex: Aula de Cookie Sandwich">
+                    </div>
+                    <div>
+                        <label class="adm-label">Cliente</label>
+                        <input class="adm-input" type="text" name="client_name" value="{{ webinar.client_name or '' }}" placeholder="Ex: Chef Áureo">
+                    </div>
+                    <div>
+                        <label class="adm-label">Slug <span style="color:var(--text-muted);font-weight:400">(URL)</span></label>
+                        <input class="adm-input" type="text" name="slug" value="{{ webinar.slug or '' }}" placeholder="cookie-sandwich" style="font-family:monospace">
+                    </div>
+                    <div>
+                        <label class="adm-label">VTurb Video ID</label>
+                        <input class="adm-input" type="text" name="vturb_video_id" value="{{ webinar.vturb_video_id or '' }}" placeholder="vid-abc123">
+                    </div>
                 </div>
-                <div>
-                    <label class="text-sm text-gray-400">Cliente</label>
-                    <input type="text" name="client_name" value="{{ webinar.client_name or '' }}"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                <div class="grid-4" style="margin-bottom:14px">
+                    <div>
+                        <label class="adm-label">Dia da semana</label>
+                        <select class="adm-input adm-select" name="day_of_week">
+                            {% for i in range(7) %}
+                            <option value="{{ i }}" {% if i == (webinar.day_of_week or 1) %}selected{% endif %}>{{ day_names[i] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="adm-label">Hora início</label>
+                        <input class="adm-input" type="number" name="start_hour" value="{{ webinar.start_hour or 19 }}" min="0" max="23">
+                    </div>
+                    <div>
+                        <label class="adm-label">Minuto início</label>
+                        <input class="adm-input" type="number" name="start_minute" value="{{ webinar.start_minute or 0 }}" min="0" max="59">
+                    </div>
+                    <div>
+                        <label class="adm-label">Base viewers</label>
+                        <input class="adm-input" type="number" name="attendee_count_base" value="{{ webinar.attendee_count_base or 47 }}">
+                    </div>
                 </div>
-                <div>
-                    <label class="text-sm text-gray-400">
-                        Slug
-                        <span class="text-gray-600 ml-1">(URL de registro)</span>
+                <div class="grid-2" style="margin-bottom:14px">
+                    <div>
+                        <label class="adm-label">URL do Upsell</label>
+                        <input class="adm-input" type="text" name="upsell_url" value="{{ webinar.upsell_url or '' }}" placeholder="https://...">
+                    </div>
+                    <div>
+                        <label class="adm-label">Texto do botão CTA</label>
+                        <input class="adm-input" type="text" name="upsell_cta_text" value="{{ webinar.upsell_cta_text or '' }}" placeholder="Quero aproveitar!">
+                    </div>
+                </div>
+                <div style="margin-bottom:14px">
+                    <label class="adm-label">Data de Teste <span style="color:var(--text-muted);font-weight:400">(deixe vazio para usar agora −20 min)</span></label>
+                    <input class="adm-input" type="datetime-local" name="test_date" value="{{ webinar.test_date or '' }}" style="width:auto">
+                </div>
+                <div style="display:flex;align-items:center;gap:16px">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-secondary)">
+                        <input type="checkbox" name="is_active" value="1" {% if webinar.is_active %}checked{% endif %} style="width:16px;height:16px;accent-color:var(--accent-gold)">
+                        Ativo
                     </label>
-                    <input type="text" name="slug" value="{{ webinar.slug or '' }}"
-                           placeholder="ex: cookie-sandwich"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-yellow-500 font-mono text-sm">
-                </div>
-                <div>
-                    <label class="text-sm text-gray-400">VTurb Video ID</label>
-                    <input type="text" name="vturb_video_id" value="{{ webinar.vturb_video_id or '' }}"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
                 </div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                <div>
-                    <label class="text-sm text-gray-400">Dia da semana</label>
-                    <select name="day_of_week"
-                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
-                        {% for i in range(7) %}
-                        <option value="{{ i }}" {% if i == (webinar.day_of_week or 1) %}selected{% endif %}>{{ day_names[i] }}</option>
-                        {% endfor %}
-                    </select>
+
+            <!-- ── Aba OFERTA ── -->
+            <div class="cfg-panel" id="tab-oferta">
+                <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Configurações da aba Oferta na sala e do rodapé fixo de countdown.</p>
+                <div class="grid-3" style="margin-bottom:14px">
+                    <div>
+                        <label class="adm-label">Preço original (riscado)</label>
+                        <input class="adm-input" type="text" name="offer_original_price" value="{{ webinar.offer_original_price or '' }}" placeholder="R$ 997">
+                    </div>
+                    <div>
+                        <label class="adm-label">Preço da oferta</label>
+                        <input class="adm-input" type="text" name="offer_price" value="{{ webinar.offer_price or '' }}" placeholder="12x R$ 99,70">
+                    </div>
+                    <div>
+                        <label class="adm-label">URL da imagem do produto</label>
+                        <input class="adm-input" type="text" name="offer_image_url" value="{{ webinar.offer_image_url or '' }}" placeholder="https://...imagem.jpg">
+                    </div>
                 </div>
-                <div>
-                    <label class="text-sm text-gray-400">Hora inicio</label>
-                    <input type="number" name="start_hour" value="{{ webinar.start_hour or 19 }}" min="0" max="23"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                {% if webinar.offer_image_url %}
+                <div style="margin-bottom:14px">
+                    <p style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Preview:</p>
+                    <img src="{{ webinar.offer_image_url }}" alt="Imagem oferta" style="max-width:200px;border-radius:8px;border:1px solid var(--border)">
                 </div>
-                <div>
-                    <label class="text-sm text-gray-400">Minuto inicio</label>
-                    <input type="number" name="start_minute" value="{{ webinar.start_minute or 0 }}" min="0" max="59"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="text-sm text-gray-400">Base viewers</label>
-                    <input type="number" name="attendee_count_base" value="{{ webinar.attendee_count_base or 47 }}"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
-                </div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="text-sm text-gray-400">URL do Upsell</label>
-                    <input type="text" name="upsell_url" value="{{ webinar.upsell_url or '' }}"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="text-sm text-gray-400">Texto do botao CTA</label>
-                    <input type="text" name="upsell_cta_text" value="{{ webinar.upsell_cta_text or '' }}"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                {% endif %}
+                <div style="background:var(--bg-elevated);border-radius:8px;padding:14px;font-size:12px;color:var(--text-muted)">
+                    💡 A aba Oferta aparece automaticamente quando um evento <strong style="color:var(--text-secondary)">cta_popup</strong> é disparado na timeline. Configure o countdown naquele evento.
                 </div>
             </div>
-            <!-- Data de Teste -->
-            <div class="mb-4">
-                <label class="text-sm text-gray-400">
-                    Data de Teste
-                    <span class="text-gray-600 ml-1">(usado no "Testar Sala" — deixe em branco para usar agora - 20min)</span>
-                </label>
-                <input type="datetime-local" name="test_date"
-                       value="{{ webinar.test_date or '' }}"
-                       class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+
+            <!-- ── Aba CHATBOT ── -->
+            <div class="cfg-panel" id="tab-chatbot">
+                <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
+                    Quando o participante digitar algo no chat que contenha uma palavra-chave, a resposta aparece automaticamente após 2-4 segundos.
+                </p>
+                <div style="margin-bottom:14px">
+                    <label class="adm-label">Respostas do chatbot (JSON)</label>
+                    <textarea class="adm-input" name="chatbot_responses" rows="10"
+                              style="font-family:monospace;font-size:12px;resize:vertical"
+                              placeholder='[
+  {"keyword": "oi", "response": "Olá! Seja bem-vindo à aula! 😊"},
+  {"keyword": "preço", "response": "O valor especial está disponível na aba Oferta! 👆"},
+  {"keyword": "link", "response": "O link de compra está na aba Oferta aqui do lado →"},
+  {"keyword": "funciona", "response": "Com certeza! Temos milhares de alunos satisfeitos 🙌"},
+  {"keyword": "parcelado", "response": "Sim! Parcela em até 12x sem juros 💳"}
+]'>{{ webinar.chatbot_responses or '' }}</textarea>
+                </div>
+                <div style="background:var(--bg-elevated);border-radius:8px;padding:14px;font-size:12px;color:var(--text-muted)">
+                    <strong style="color:var(--text-secondary)">Formato:</strong> array JSON com objetos <code style="color:var(--accent-gold)">{"keyword": "palavra", "response": "resposta"}</code><br>
+                    A keyword é verificada por inclusão (case insensitive) — "preço" também pega "qual é o preço".
+                </div>
             </div>
-            <div class="flex items-center gap-4">
-                <label class="flex items-center gap-2 text-sm text-gray-400">
-                    <input type="checkbox" name="is_active" value="1" {% if webinar.is_active %}checked{% endif %}
-                           class="rounded bg-gray-800 border-gray-700">
-                    Ativo
-                </label>
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition">
-                    Salvar
+
+            <!-- ── Aba REGISTRO ── -->
+            <div class="cfg-panel" id="tab-registro">
+                <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Personaliza a página <code style="color:var(--accent-gold)">/registrar?w={{ webinar.slug or 'slug' }}</code></p>
+
+                <div class="grid-2" style="margin-bottom:14px">
+                    <div>
+                        <label class="adm-label">Modo da página</label>
+                        <select class="adm-input adm-select" name="register_mode" onchange="updateRegisterPreview()">
+                            <option value="1" {% if (webinar.register_mode or 1)==1 %}selected{% endif %}>Modo 1 — Headline + subtítulo + cor</option>
+                            <option value="2" {% if (webinar.register_mode or 1)==2 %}selected{% endif %}>Modo 2 — Headline + imagem de fundo</option>
+                            <option value="3" {% if (webinar.register_mode or 1)==3 %}selected{% endif %}>Modo 3 — Foto do apresentador + bullets</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="adm-label">Texto do botão</label>
+                        <input class="adm-input" type="text" name="register_button_text" value="{{ webinar.register_button_text or '' }}" placeholder="Garantir meu lugar">
+                    </div>
+                </div>
+                <div class="grid-2" style="margin-bottom:14px">
+                    <div>
+                        <label class="adm-label">Headline principal</label>
+                        <input class="adm-input" type="text" name="register_headline" value="{{ webinar.register_headline or '' }}" placeholder="Aula especial do Chef Áureo">
+                    </div>
+                    <div>
+                        <label class="adm-label">Subtítulo</label>
+                        <input class="adm-input" type="text" name="register_subtitle" value="{{ webinar.register_subtitle or '' }}" placeholder="Hoje às 19h — Vagas limitadas">
+                    </div>
+                </div>
+                <div class="grid-3" style="margin-bottom:14px">
+                    <div>
+                        <label class="adm-label">Cor de fundo <span style="color:var(--text-muted);font-weight:400">(hex, Modo 1)</span></label>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <input class="adm-input" type="text" name="register_bg_color" id="bg-color-input"
+                                   value="{{ webinar.register_bg_color or '#0a0a0f' }}" placeholder="#0a0a0f" style="flex:1">
+                            <input type="color" value="{{ webinar.register_bg_color or '#0a0a0f' }}" oninput="document.getElementById('bg-color-input').value=this.value"
+                                   style="width:36px;height:36px;border:none;border-radius:6px;cursor:pointer;background:none;padding:0">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="adm-label">URL imagem de fundo <span style="color:var(--text-muted);font-weight:400">(Modo 2)</span></label>
+                        <input class="adm-input" type="text" name="register_bg_image_url" value="{{ webinar.register_bg_image_url or '' }}" placeholder="https://...fundo.jpg">
+                    </div>
+                    <div>
+                        <label class="adm-label">URL foto do apresentador <span style="color:var(--text-muted);font-weight:400">(Modo 3)</span></label>
+                        <input class="adm-input" type="text" name="register_presenter_photo_url" value="{{ webinar.register_presenter_photo_url or '' }}" placeholder="https://...foto.jpg">
+                    </div>
+                </div>
+                <div style="margin-bottom:14px">
+                    <label class="adm-label">Bullet points <span style="color:var(--text-muted);font-weight:400">(Modo 3 — JSON array)</span></label>
+                    <textarea class="adm-input" name="register_bullets" rows="4"
+                              style="font-family:monospace;font-size:12px;resize:vertical"
+                              placeholder='["Aprenda a receita do Cookie Sandwich", "Técnicas exclusivas de confeitaria", "Aula 100% prática e ao vivo"]'>{{ webinar.register_bullets or '' }}</textarea>
+                </div>
+            </div>
+
+            <!-- ── Botão salvar (sempre visível) ── -->
+            <div style="padding-top:16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px">
+                <button type="submit" class="adm-btn adm-btn-gold" style="padding:11px 28px;font-size:14px">
+                    Salvar configurações
                 </button>
+                <span id="save-hint" style="font-size:12px;color:var(--text-muted)">Salva todas as abas de uma vez</span>
             </div>
+
         </form>
     </div>
 
-    <!-- Timeline de Eventos -->
-    <div class="bg-gray-900 rounded-xl p-6 mb-8">
-        <h2 class="text-lg font-semibold mb-4">Timeline de Eventos ({{ events|length }})</h2>
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- TIMELINE DE EVENTOS -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="adm-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <p class="adm-section-title" style="margin-bottom:0;border-bottom:none">Timeline de Eventos ({{ events|length }})</p>
+            <a href="{{ url_for('admin.timeline_view', webinar_id=webinar.id) }}" style="font-size:12px;color:var(--accent-gold);text-decoration:none">Editor visual →</a>
+        </div>
 
-        <!-- Adicionar Evento -->
-        <form method="POST" action="{{ url_for('admin.timeline_add', webinar_id=webinar.id) }}" class="mb-6 p-4 bg-gray-800/50 rounded-lg">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <!-- Adicionar evento -->
+        <form method="POST" action="{{ url_for('admin.timeline_add', webinar_id=webinar.id) }}"
+              style="background:var(--bg-elevated);border-radius:10px;padding:16px;margin-bottom:16px">
+            <div class="grid-3" style="margin-bottom:12px">
                 <div>
-                    <label class="text-sm text-gray-400">Tipo</label>
-                    <select name="event_type" id="event-type"
-                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500"
-                            onchange="toggleFields()">
-                        <option value="chat">Chat</option>
-                        <option value="cta_popup">CTA Popup</option>
-                        <option value="poll">Poll</option>
+                    <label class="adm-label">Tipo</label>
+                    <select class="adm-input adm-select" name="event_type" id="event-type" onchange="toggleFields()">
+                        <option value="chat">💬 Chat</option>
+                        <option value="purchase_notification">⭐ Notificação de compra</option>
+                        <option value="cta_popup">🔥 CTA Popup</option>
+                        <option value="poll">📊 Poll</option>
+                        <option value="end_broadcast">🎬 Encerramento</option>
                     </select>
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">Segundo do video</label>
-                    <input type="number" name="trigger_second" min="0" required
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Segundo do vídeo</label>
+                    <input class="adm-input" type="number" name="trigger_second" min="0" required placeholder="ex: 2700 = 45min">
                 </div>
-                <div class="flex items-end">
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition">
-                        Adicionar
-                    </button>
+                <div style="display:flex;align-items:flex-end">
+                    <button type="submit" class="adm-btn adm-btn-gold" style="width:100%">+ Adicionar</button>
                 </div>
             </div>
 
             <!-- Campos Chat -->
-            <div id="fields-chat" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div id="fields-chat" class="grid-2">
                 <div>
-                    <label class="text-sm text-gray-400">Autor</label>
-                    <input type="text" name="author"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Autor</label>
+                    <input class="adm-input" type="text" name="author" placeholder="Mariana Silva">
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">Mensagem</label>
-                    <input type="text" name="message"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Mensagem</label>
+                    <input class="adm-input" type="text" name="message" placeholder="Que receita incrível! 😍">
                 </div>
             </div>
 
+            <!-- Campos Purchase Notification -->
+            <div id="fields-purchase" style="display:none">
+                <label class="adm-label">Nomes (separados por vírgula)</label>
+                <input class="adm-input" type="text" name="purchase_names" placeholder="Maria Silva, João Santos, Ana Costa">
+            </div>
+
             <!-- Campos CTA -->
-            <div id="fields-cta" class="grid grid-cols-1 md:grid-cols-3 gap-4 hidden">
+            <div id="fields-cta" style="display:none" class="grid-3">
                 <div>
-                    <label class="text-sm text-gray-400">Titulo</label>
-                    <input type="text" name="title"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Título</label>
+                    <input class="adm-input" type="text" name="title" placeholder="Oferta especial!">
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">Countdown (minutos)</label>
-                    <input type="number" name="countdown_minutes" value="15"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Countdown (minutos)</label>
+                    <input class="adm-input" type="number" name="countdown_minutes" value="15">
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">URL</label>
-                    <input type="text" name="url"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">URL (opcional, usa upsell_url)</label>
+                    <input class="adm-input" type="text" name="url" placeholder="https://...">
                 </div>
             </div>
 
             <!-- Campos Poll -->
-            <div id="fields-poll" class="grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
+            <div id="fields-poll" style="display:none" class="grid-2">
                 <div>
-                    <label class="text-sm text-gray-400">Pergunta</label>
-                    <input type="text" name="question" placeholder="Você já fez cookies antes?"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Pergunta</label>
+                    <input class="adm-input" type="text" name="question" placeholder="Você já fez cookies antes?">
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">Opcoes (separadas por virgula)</label>
-                    <input type="text" name="options" placeholder="Sim,Nao,Algumas vezes"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Opções (por vírgula)</label>
+                    <input class="adm-input" type="text" name="options" placeholder="Sim,Não,Às vezes">
                 </div>
             </div>
         </form>
 
-        <!-- Lista de Eventos -->
+        <!-- Lista de eventos -->
         {% if events %}
-        <div class="space-y-2">
+        <div style="display:flex;flex-direction:column;gap:6px">
             {% for e in events %}
-            <div class="flex items-center justify-between bg-gray-800/30 rounded-lg px-4 py-3">
-                <div class="flex items-center gap-4">
-                    <span class="text-xs font-mono bg-gray-700 px-2 py-1 rounded">{{ e.trigger_second }}s</span>
-                    <span class="text-xs font-semibold uppercase
-                        {% if e.event_type == 'chat' %}text-blue-400
-                        {% elif e.event_type == 'cta_popup' %}text-yellow-400
-                        {% else %}text-purple-400{% endif %}">{{ e.event_type }}</span>
-                    <span class="text-sm text-gray-300">{{ e.payload[:80] }}{% if e.payload|length > 80 %}...{% endif %}</span>
+            {% set mins = (e.trigger_second // 60) %}{% set secs = (e.trigger_second % 60) %}
+            <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-elevated);border-radius:8px;padding:10px 14px;gap:12px">
+                <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+                    <span style="font-family:monospace;font-size:12px;background:var(--bg-secondary);color:var(--text-secondary);padding:3px 8px;border-radius:6px;flex-shrink:0">{{ '%d:%02d'|format(mins,secs) }}</span>
+                    <span class="ev-badge {% if e.event_type == 'chat' %}{% set bc='rgba(59,130,246,.15)'%}{% set tc='#93c5fd'%}{% elif e.event_type == 'cta_popup' %}{% set bc='rgba(245,158,11,.15)'%}{% set tc='#fcd34d'%}{% elif e.event_type == 'purchase_notification' %}{% set bc='rgba(245,166,35,.15)'%}{% set tc='#f5a623'%}{% elif e.event_type == 'end_broadcast' %}{% set bc='rgba(239,68,68,.15)'%}{% set tc='#f87171'%}{% else %}{% set bc='rgba(168,85,247,.15)'%}{% set tc='#c084fc'%}{% endif %}"
+                         style="background:{{ bc }};color:{{ tc }};flex-shrink:0">{{ e.event_type }}</span>
+                    <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.payload[:70] if e.payload else '' }}{% if e.payload and e.payload|length > 70 %}…{% endif %}</span>
                 </div>
-                <form method="POST" action="{{ url_for('admin.timeline_delete', event_id=e.id) }}" class="inline">
-                    <button type="submit" class="text-red-400 hover:text-red-300 text-sm" onclick="return confirm('Excluir?')">Excluir</button>
+                <form method="POST" action="{{ url_for('admin.timeline_delete', event_id=e.id) }}" style="flex-shrink:0">
+                    <button type="submit" class="adm-btn adm-btn-danger" style="padding:4px 10px;font-size:11px" onclick="return confirm('Excluir evento?')">Excluir</button>
                 </form>
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <p class="text-gray-500 text-center">Nenhum evento cadastrado.</p>
+        <p style="text-align:center;color:var(--text-muted);font-size:13px;padding:24px 0">Nenhum evento cadastrado. Adicione acima ou use o <a href="{{ url_for('admin.ai_timeline', webinar_id=webinar.id) }}" style="color:var(--accent-gold)">Gerador de IA</a>.</p>
         {% endif %}
     </div>
 
-    <!-- Lista de Registrants deste webinario -->
-    <div class="bg-gray-900 rounded-xl p-6">
-        <h2 class="text-lg font-semibold mb-4">Registrados ({{ registrants|length }})</h2>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- REGISTRADOS -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="adm-card">
+        <p class="adm-section-title">Registrados ({{ registrants|length }})</p>
+        {% if registrants %}
+        <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
                 <thead>
-                    <tr class="text-gray-400 text-left border-b border-gray-800">
-                        <th class="pb-3 pr-4">Nome</th>
-                        <th class="pb-3 pr-4">Email</th>
-                        <th class="pb-3 pr-4">Data Webinario</th>
-                        <th class="pb-3 pr-4">Assistiu</th>
-                        <th class="pb-3 pr-4">Tempo (min)</th>
-                        <th class="pb-3">CTA</th>
+                    <tr style="color:var(--text-muted);border-bottom:1px solid var(--border)">
+                        <th style="text-align:left;padding:8px 12px 8px 0;font-weight:600">Nome</th>
+                        <th style="text-align:left;padding:8px 12px 8px 0;font-weight:600">Email</th>
+                        <th style="text-align:left;padding:8px 12px 8px 0;font-weight:600">Data</th>
+                        <th style="text-align:center;padding:8px 8px;font-weight:600">Assistiu</th>
+                        <th style="text-align:center;padding:8px 8px;font-weight:600">Tempo</th>
+                        <th style="text-align:center;padding:8px 0;font-weight:600">CTA</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for r in registrants %}
-                    <tr class="border-b border-gray-800/50">
-                        <td class="py-3 pr-4">{{ r.name }}</td>
-                        <td class="py-3 pr-4 text-gray-400">{{ r.email }}</td>
-                        <td class="py-3 pr-4 text-gray-400">{{ r.webinar_date.strftime('%d/%m/%Y %H:%M') if r.webinar_date else '-' }}</td>
-                        <td class="py-3 pr-4">
-                            {% if r.attended %}
-                            <span class="text-green-400">Sim</span>
-                            {% else %}
-                            <span class="text-gray-600">Nao</span>
-                            {% endif %}
+                    <tr style="border-bottom:1px solid rgba(42,42,58,.5)">
+                        <td style="padding:10px 12px 10px 0;font-weight:500">{{ r.name or '—' }}</td>
+                        <td style="padding:10px 12px 10px 0;color:var(--text-muted)">{{ r.email or '—' }}</td>
+                        <td style="padding:10px 12px 10px 0;color:var(--text-muted);font-size:12px">{{ r.webinar_date.strftime('%d/%m %H:%M') if r.webinar_date else '—' }}</td>
+                        <td style="padding:10px 8px;text-align:center">
+                            {% if r.attended %}<span style="color:var(--success);font-weight:700">✓</span>{% else %}<span style="color:var(--text-muted)">—</span>{% endif %}
                         </td>
-                        <td class="py-3 pr-4 text-gray-400">{{ (r.watch_time_seconds / 60)|round(1) }}</td>
-                        <td class="py-3">
-                            {% if r.clicked_cta %}
-                            <span class="text-yellow-400">Sim</span>
-                            {% else %}
-                            <span class="text-gray-600">Nao</span>
-                            {% endif %}
+                        <td style="padding:10px 8px;text-align:center;color:var(--text-muted);font-size:12px">{{ (r.watch_time_seconds / 60)|round(1) }}m</td>
+                        <td style="padding:10px 0;text-align:center">
+                            {% if r.clicked_cta %}<span style="color:var(--accent-gold);font-weight:700">✓</span>{% else %}<span style="color:var(--text-muted)">—</span>{% endif %}
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% else %}
+        <p style="text-align:center;color:var(--text-muted);font-size:13px;padding:24px 0">Nenhum registrado ainda.</p>
+        {% endif %}
     </div>
+
+    <!-- Excluir webinário -->
+    <div style="text-align:right;margin-top:8px">
+        <form method="POST" action="{{ url_for('admin.webinar_delete', webinar_id=webinar.id) }}" style="display:inline">
+            <button type="submit" class="adm-btn adm-btn-danger" style="font-size:12px" onclick="return confirm('Excluir webinário e todos os dados? Esta ação não pode ser desfeita.')">
+                Excluir webinário
+            </button>
+        </form>
+    </div>
+
 </div>
 
 <script>
+// ── Abas de configuração ──────────────────────────────────────────────────
+function showTab(name) {
+    document.querySelectorAll('.cfg-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.cfg-tab').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.currentTarget.classList.add('active');
+}
+
+// ── Toggle campos timeline ────────────────────────────────────────────────
 function toggleFields() {
     const type = document.getElementById('event-type').value;
-    document.getElementById('fields-chat').classList.toggle('hidden', type !== 'chat');
-    document.getElementById('fields-cta').classList.toggle('hidden', type !== 'cta_popup');
-    document.getElementById('fields-poll').classList.toggle('hidden', type !== 'poll');
+    document.getElementById('fields-chat').style.display = type === 'chat' ? 'grid' : 'none';
+    document.getElementById('fields-purchase').style.display = type === 'purchase_notification' ? 'block' : 'none';
+    document.getElementById('fields-cta').style.display = type === 'cta_popup' ? 'grid' : 'none';
+    document.getElementById('fields-poll').style.display = type === 'poll' ? 'grid' : 'none';
 }
 </script>
 {% endblock %}
