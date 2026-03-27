@@ -3,81 +3,161 @@
 
 {% block head %}
 <style>
-/* ── Layout ─────────────────────────────────────────────────────────────── */
-.sala-grid {
-    display: grid;
-    grid-template-columns: 1fr 360px;
-    gap: 16px;
-    height: calc(100vh - 64px);
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 0 16px 16px;
-}
-@media (max-width: 768px) {
-    .sala-grid { grid-template-columns: 1fr; height: auto; padding: 0 8px 100px; }
-    .panel-right { height: 420px; }
-}
+/* ── Layout Sala ─────────────────────────────────────────────────────────── */
+.sala-wrapper { min-height: 100vh; background: var(--bg-primary); }
 
-/* ── Header ─────────────────────────────────────────────────────────────── */
 .sala-header {
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    height: 52px;
+    display: flex; align-items: center; justify-content: space-between;
     padding: 0 20px;
     border-bottom: 1px solid var(--border);
     background: var(--bg-secondary);
-    position: sticky;
-    top: 0;
-    z-index: 50;
+    position: sticky; top: 0; z-index: 50;
 }
 
-/* ── Chat ───────────────────────────────────────────────────────────────── */
-.chat-msg { animation: fadeInUp .25s ease-out; }
-.chat-avatar {
-    width: 30px; height: 30px; border-radius: 50%;
+.sala-layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+    height: calc(100vh - 52px);
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 16px;
+}
+
+/* ── Vídeo ─────────────────────────────────────────────────────────────── */
+.video-section { display: flex; flex-direction: column; min-width: 0; }
+.video-wrap {
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    aspect-ratio: 16/9;
+    position: relative;
+    width: 100%;
+}
+
+/* ── Fullscreen button ──────────────────────────────────────────────────── */
+.fullscreen-btn {
+    position: absolute; bottom: 10px; right: 10px;
+    background: rgba(0,0,0,.5); border: none; border-radius: 6px;
+    color: #fff; width: 32px; height: 32px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 700; flex-shrink: 0;
-    color: #fff;
+    font-size: 14px; transition: background .15s; z-index: 5;
+}
+.fullscreen-btn:hover { background: rgba(0,0,0,.8); }
+
+/* Fullscreen native */
+.video-wrap:-webkit-full-screen { width: 100vw; height: 100vh; border-radius: 0; aspect-ratio: auto; }
+.video-wrap:fullscreen { width: 100vw; height: 100vh; border-radius: 0; aspect-ratio: auto; }
+
+/* ── Live badge flutuante (landscape mobile) ────────────────────────────── */
+.live-badge-float {
+    display: none;
+    position: absolute; top: 8px; left: 8px; z-index: 10;
+    background: rgba(0,0,0,.6); border-radius: 20px; padding: 4px 10px;
+    align-items: center; gap: 5px;
+}
+
+/* ── Painel direito ─────────────────────────────────────────────────────── */
+.panel-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,.05);
 }
 
 /* ── Abas ───────────────────────────────────────────────────────────────── */
+.panel-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .tab-btn {
-    flex: 1; padding: 10px 4px; font-size: 13px; font-weight: 600;
-    border-bottom: 2px solid transparent; transition: all .15s;
-    color: var(--text-muted); cursor: pointer; text-align: center;
-    background: none; border-top: none; border-left: none; border-right: none;
+    flex: 1; padding: 13px 6px;
+    font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700;
+    letter-spacing: .04em; text-transform: uppercase;
+    border: none; background: none; cursor: pointer;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted); transition: color .15s, border-color .15s;
+    position: relative;
 }
 .tab-btn.active { color: var(--accent-gold); border-bottom-color: var(--accent-gold); }
+.tab-btn:hover:not(.active) { color: var(--text-secondary); }
 
-/* ── Purchase notification ──────────────────────────────────────────────── */
-.purchase-banner {
-    background: linear-gradient(135deg, rgba(245,166,35,.15), rgba(245,166,35,.05));
-    border: 1px solid rgba(245,166,35,.35);
-    border-radius: 10px;
+/* Pulsing dot na aba oferta quando ativa */
+#tab-offer.tab-offer-active::after {
+    content: '';
+    position: absolute; top: 8px; right: 10px;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent-gold);
+    animation: blink 1.2s infinite;
+}
+
+/* ── Conteúdo do painel ─────────────────────────────────────────────────── */
+.panel-content { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+/* ── Chat ───────────────────────────────────────────────────────────────── */
+.chat-messages {
+    flex: 1; overflow-y: auto; padding: 12px;
+    display: flex; flex-direction: column; gap: 8px;
+}
+.chat-msg { animation: fadeInUp .25s ease-out; }
+
+.chat-input-row {
     padding: 10px 12px;
-    animation: slideDown .35s ease-out;
+    border-top: 1px solid var(--border);
+    display: flex; gap: 8px; align-items: center; flex-shrink: 0;
+}
+.chat-input {
+    flex: 1; background: var(--bg-secondary);
+    border: 1px solid var(--border); border-radius: 20px;
+    padding: 9px 14px; font-family: 'Lato', sans-serif; font-size: 13px;
+    color: var(--text-primary); outline: none; transition: border-color .2s;
+    min-width: 0;
+}
+.chat-input:focus { border-color: var(--accent-gold); }
+.chat-input::placeholder { color: var(--text-muted); }
+.chat-send-btn {
+    background: var(--accent-gold); color: #fff; border: none;
+    border-radius: 50%; width: 34px; height: 34px; font-size: 16px; font-weight: 700;
+    cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity .15s;
+}
+.chat-send-btn:hover { opacity: .85; }
+
+/* ── Purchase banner ────────────────────────────────────────────────────── */
+.purchase-banner {
+    background: #fffbf0;
+    border: 1px solid #f0c060;
+    border-radius: 8px;
+    padding: 8px 12px;
+    display: flex; align-items: center; gap: 8px;
+    animation: slideInRight .3s ease;
+    flex-shrink: 0;
+}
+
+/* ── Offer panel ────────────────────────────────────────────────────────── */
+.offer-countdown-display {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 32px; font-weight: 800;
+    color: var(--accent-gold);
+    line-height: 1;
 }
 
 /* ── Rodapé fixo oferta ─────────────────────────────────────────────────── */
 #offer-footer {
     position: fixed; bottom: 0; left: 0; right: 0;
-    background: var(--bg-secondary);
-    border-top: 1px solid var(--border);
-    padding: 12px 20px;
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 12px; z-index: 100;
-    box-shadow: 0 -4px 24px rgba(0,0,0,.5);
-}
-@media (max-width: 768px) {
-    #offer-footer { flex-direction: column; gap: 8px; padding: 10px 16px; }
-    #offer-footer .btn-gold { width: 100%; text-align: center; }
+    background: var(--bg-card);
+    border-top: 2px solid var(--accent-gold);
+    padding: 10px 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    z-index: 100;
+    box-shadow: 0 -4px 20px rgba(0,0,0,.1);
 }
 
 /* ── Tela de encerramento ───────────────────────────────────────────────── */
 #broadcast-end {
     position: fixed; inset: 0; z-index: 200;
-    background: linear-gradient(160deg, rgba(10,10,15,.97) 0%, rgba(80,10,10,.85) 100%);
+    background: rgba(10,5,0,.92);
     display: flex; align-items: center; justify-content: center;
     flex-direction: column; text-align: center; padding: 24px;
 }
@@ -86,12 +166,78 @@
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
 .live-dot { animation: blink 1.5s infinite; }
 
-/* ── Countdown display ──────────────────────────────────────────────────── */
+/* ── Countdown (tela espera) ────────────────────────────────────────────── */
 .countdown-display {
-    font-size: 2rem; font-weight: 800;
-    background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    background-clip: text;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 2.2rem; font-weight: 800;
+    color: var(--accent-gold);
+}
+
+/* ── Animações ──────────────────────────────────────────────────────────── */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideInRight {
+    from { transform: translateX(110%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* RESPONSIVE — Mobile Portrait                                              */
+/* ══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .sala-layout {
+        grid-template-columns: 1fr;
+        height: auto;
+        gap: 0;
+        padding: 0;
+        padding-bottom: 64px;
+    }
+    .video-section { order: 1; }
+    .video-wrap { border-radius: 0; aspect-ratio: 16/9; width: 100%; }
+    .panel-section {
+        order: 2;
+        border-radius: 0;
+        border-left: none; border-right: none;
+        height: 300px;
+        flex-shrink: 0;
+    }
+    .chat-messages {
+        height: calc(300px - 90px);
+        flex: none;
+        overflow-y: auto;
+    }
+    #offer-footer {
+        flex-direction: column;
+        gap: 8px;
+        padding: 10px 16px;
+    }
+    #offer-footer .btn-gold { width: 100%; text-align: center; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* RESPONSIVE — Mobile Landscape                                             */
+/* ══════════════════════════════════════════════════════════════════════════ */
+@media (orientation: landscape) and (max-height: 500px) {
+    .sala-header { display: none; }
+    .sala-layout {
+        grid-template-columns: 60% 40%;
+        height: 100vh;
+        gap: 0;
+        padding: 0;
+        padding-bottom: 0;
+        max-width: none;
+    }
+    .video-wrap {
+        border-radius: 0;
+        aspect-ratio: auto;
+        height: 100%;
+    }
+    .video-section { height: 100vh; }
+    .panel-section { border-radius: 0; height: 100vh; }
+    .live-badge-float { display: flex; }
+    .chat-messages { height: calc(100vh - 120px); flex: none; }
 }
 </style>
 {% endblock %}
@@ -99,37 +245,35 @@
 {% block body %}
 
 {% if error %}
-<!-- ── ERRO ─────────────────────────────────────────────────────────── -->
-<div style="display:flex;align-items:center;justify-content:center;min-height:100vh">
-    <div class="card" style="max-width:400px;text-align:center;padding:40px 32px">
+<!-- ── ERRO ──────────────────────────────────────────────────────────── -->
+<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:var(--bg-primary)">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:400px;width:100%;text-align:center;padding:40px 32px;box-shadow:0 4px 24px rgba(0,0,0,.06)">
         <div style="font-size:48px;margin-bottom:16px">🔒</div>
-        <h1 style="font-size:20px;font-weight:700;margin-bottom:8px">Acesso negado</h1>
-        <p style="color:var(--text-secondary)">{{ error }}</p>
-        <a href="/registrar" class="btn-gold" style="margin-top:20px;display:inline-block">Fazer cadastro</a>
+        <h1 style="font-family:'Montserrat',sans-serif;font-size:20px;font-weight:800;color:var(--text-primary);margin-bottom:8px">Acesso negado</h1>
+        <p style="font-family:'Lato',sans-serif;color:var(--text-secondary);font-size:14px">{{ error }}</p>
+        <a href="/registrar" class="btn-gold" style="margin-top:20px;display:inline-block;font-size:13px">Fazer cadastro</a>
     </div>
 </div>
 
 {% elif waiting %}
-<!-- ── COUNTDOWN ─────────────────────────────────────────────────── -->
-<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px">
-    <div class="card" style="max-width:480px;width:100%;text-align:center;padding:48px 32px">
-        <div style="margin-bottom:8px;display:flex;justify-content:center">
-            <div style="background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.3);border-radius:20px;padding:4px 16px;font-size:12px;font-weight:700;color:#f5a623;letter-spacing:.06em;text-transform:uppercase">
+<!-- ── AGUARDANDO ─────────────────────────────────────────────────────── -->
+<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:var(--bg-primary)">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;max-width:480px;width:100%;text-align:center;padding:48px 32px;box-shadow:0 4px 24px rgba(0,0,0,.06)">
+        <div style="display:flex;justify-content:center;margin-bottom:20px">
+            <div style="background:rgba(200,130,10,.1);border:1px solid rgba(200,130,10,.25);border-radius:20px;padding:5px 16px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:var(--accent-gold);letter-spacing:.06em;text-transform:uppercase">
                 Começando em breve
             </div>
         </div>
-        <h1 style="font-size:26px;font-weight:800;margin:20px 0 8px">
+        <h1 style="font-family:'Montserrat',sans-serif;font-size:24px;font-weight:800;color:var(--text-primary);margin-bottom:8px">
             Oi, {{ name.split()[0] if name else 'participante' }}! 👋
         </h1>
-        <p style="color:var(--text-secondary);margin-bottom:32px">
+        <p style="font-family:'Lato',sans-serif;color:var(--text-secondary);font-size:14px;margin-bottom:32px;line-height:1.5">
             A aula ainda não começou. Quando iniciar, esta página atualizará automaticamente.
         </p>
         <div class="countdown-display" id="countdown">--:--:--</div>
-        <p style="color:var(--text-muted);font-size:13px;margin-top:16px">
-            Horário de Brasília
-        </p>
-        <div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--border)">
-            <p style="color:var(--text-muted);font-size:12px">
+        <p style="font-family:'Lato',sans-serif;color:var(--text-muted);font-size:13px;margin-top:12px">Horário de Brasília</p>
+        <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--border)">
+            <p style="font-family:'Lato',sans-serif;color:var(--text-muted);font-size:12px;line-height:1.5">
                 Mantenha esta página aberta — ela recarregará automaticamente quando a aula iniciar.
             </p>
         </div>
@@ -154,159 +298,190 @@ setInterval(updateCountdown, 1000);
 </script>
 
 {% else %}
-<!-- ══════════════════════════════════════════════════════════════════ -->
-<!-- SALA AO VIVO -->
-<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- SALA AO VIVO                                                           -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div class="sala-wrapper">
 
-<!-- Header -->
-<header class="sala-header">
-    <div style="display:flex;align-items:center;gap:8px">
-        <div class="live-dot" style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0"></div>
-        <span style="color:#f87171;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">Ao Vivo</span>
-    </div>
-    <div style="font-size:15px;font-weight:600;color:var(--text-primary);text-align:center;flex:1;margin:0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-        {{ config.name if config else 'Webinário' }}
-    </div>
-    <div style="display:flex;align-items:center;gap:6px;color:var(--text-muted);font-size:13px;flex-shrink:0">
-        <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>
-        <span id="viewer-count">{{ config.attendee_count_base if config else 47 }}</span>
-        <span style="color:var(--text-muted)">assistindo</span>
-    </div>
-</header>
-
-<!-- Grid principal -->
-<div class="sala-grid">
-
-    <!-- ── Coluna esquerda: Vídeo ── -->
-    <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
-        <div style="background:#000;border-radius:12px;overflow:hidden;aspect-ratio:16/9;position:relative">
-            {% if config and config.vturb_video_id %}
-            <vturb-smartplayer id="{{ config.vturb_video_id }}" style="display:block;width:100%;height:100%"></vturb-smartplayer>
-            <script>
-            var s=document.createElement("script");
-            s.src="https://scripts.converteai.net/8757ee6b-f7d2-4b00-9669-54aa471b73a9/players/{{ config.vturb_video_id.replace('vid-', '') }}/v4/player.js";
-            s.async=true; document.head.appendChild(s);
-            </script>
-            {% else %}
-            <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted)">
-                <p>Vídeo não configurado</p>
-            </div>
-            {% endif %}
+    <!-- ── Header ──────────────────────────────────────────────────────── -->
+    <header class="sala-header">
+        <!-- Badge AO VIVO -->
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            <div class="live-dot" style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0"></div>
+            <span style="font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:.06em">AO VIVO</span>
         </div>
-    </div>
-
-    <!-- ── Coluna direita: Painel ── -->
-    <div class="panel-right card" style="display:flex;flex-direction:column;overflow:hidden;border-radius:12px">
-
-        <!-- Abas -->
-        <div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0">
-            <button class="tab-btn active" id="tab-chat" onclick="switchTab('chat')">💬 Chat</button>
-            <button class="tab-btn" id="tab-support" onclick="switchTab('support')">🛟 Suporte</button>
-            <button class="tab-btn" id="tab-offer" onclick="switchTab('offer')" style="display:none">🔥 Oferta</button>
+        <!-- Nome do webinar -->
+        <div style="font-family:'Montserrat',sans-serif;font-size:13px;font-weight:600;color:var(--text-primary);text-align:center;flex:1;margin:0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            {{ config.name if config else 'Webinário' }}
         </div>
+        <!-- Viewers -->
+        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+            <svg width="13" height="13" fill="var(--text-muted)" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>
+            <span id="viewer-count" style="font-family:'Montserrat',sans-serif;font-size:11px;color:var(--text-muted)">{{ config.attendee_count_base if config else 47 }}</span>
+            <span style="font-family:'Montserrat',sans-serif;font-size:11px;color:var(--text-muted)">ao vivo</span>
+        </div>
+    </header>
 
-        <!-- ── Painel CHAT ── -->
-        <div id="panel-chat" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
-            <div id="chat-box" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px"></div>
-            <!-- Input usuário (visual) -->
-            <div style="padding:10px 12px;border-top:1px solid var(--border);display:flex;gap-8px;gap:8px">
-                <input type="text" id="user-chat-input" placeholder="Digite algo..."
-                       style="flex:1;background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;outline:none;font-family:'Inter',sans-serif">
-                <button onclick="sendUserChat()"
-                        style="background:var(--accent-gold);color:#0a0a0f;border:none;border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer;font-size:13px;flex-shrink:0">
-                    ↑
+    <!-- ── Layout principal ─────────────────────────────────────────────── -->
+    <div class="sala-layout">
+
+        <!-- ── Vídeo ──────────────────────────────────────────────────── -->
+        <div class="video-section">
+            <div class="video-wrap" id="video-wrap">
+
+                <!-- Badge flutuante (landscape mobile) -->
+                <div class="live-badge-float">
+                    <div class="live-dot" style="width:6px;height:6px;border-radius:50%;background:#ef4444"></div>
+                    <span style="font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.05em">AO VIVO</span>
+                </div>
+
+                {% if config and config.vturb_video_id %}
+                <vturb-smartplayer id="{{ config.vturb_video_id }}" style="display:block;width:100%;height:100%"></vturb-smartplayer>
+                <script>
+                var s=document.createElement("script");
+                s.src="https://scripts.converteai.net/8757ee6b-f7d2-4b00-9669-54aa471b73a9/players/{{ config.vturb_video_id.replace('vid-', '') }}/v4/player.js";
+                s.async=true; document.head.appendChild(s);
+                </script>
+                {% else %}
+                <div style="display:flex;align-items:center;justify-content:center;height:100%;background:#111;color:#666">
+                    <p style="font-family:'Lato',sans-serif">Vídeo não configurado</p>
+                </div>
+                {% endif %}
+
+                <!-- Botão fullscreen -->
+                <button class="fullscreen-btn" onclick="toggleFullscreen()" title="Tela cheia">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 3 21 3 21 9"></polyline>
+                        <polyline points="9 21 3 21 3 15"></polyline>
+                        <line x1="21" y1="3" x2="14" y2="10"></line>
+                        <line x1="3" y1="21" x2="10" y2="14"></line>
+                    </svg>
                 </button>
             </div>
         </div>
 
-        <!-- ── Painel SUPORTE ── -->
-        <div id="panel-support" style="display:none;flex-direction:column;flex:1;overflow:hidden;padding:16px">
-            <p style="font-weight:600;margin-bottom:4px">Envie sua dúvida</p>
-            <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px">Nossa equipe responderá em breve.</p>
-            <textarea id="support-input" rows="4" placeholder="Escreva sua dúvida aqui..."
-                      style="width:100%;background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-size:13px;resize:none;outline:none;font-family:'Inter',sans-serif;margin-bottom:10px"></textarea>
-            <button onclick="sendSupport()"
-                    style="background:linear-gradient(135deg,#f5a623,#ffc85a);color:#0a0a0f;border:none;border-radius:8px;padding:11px 20px;font-weight:700;cursor:pointer;font-size:14px;width:100%">
-                Enviar mensagem
-            </button>
-            <div id="support-status" style="display:none;margin-top:12px;text-align:center;color:var(--success);font-size:13px;font-weight:600">
-                ✅ Mensagem enviada! Responderemos em breve.
-            </div>
-        </div>
+        <!-- ── Painel direito ──────────────────────────────────────────── -->
+        <div class="panel-section">
 
-        <!-- ── Painel OFERTA ── -->
-        <div id="panel-offer" style="display:none;flex-direction:column;flex:1;overflow-y:auto;padding:16px;gap:12px">
-            {% if config and config.offer_image_url %}
-            <img src="{{ config.offer_image_url }}" alt="Oferta" style="width:100%;border-radius:10px;object-fit:cover">
+            <!-- Abas -->
+            <div class="panel-tabs">
+                <button class="tab-btn active" id="tab-chat" onclick="switchTab('chat')">💬 Chat</button>
+                <button class="tab-btn" id="tab-support" onclick="switchTab('support')">🛟 Suporte</button>
+                <button class="tab-btn" id="tab-offer" onclick="switchTab('offer')" style="display:none">🔥 Oferta</button>
+            </div>
+
+            <!-- ── Painel CHAT ──────────────────────────────────────── -->
+            <div id="panel-chat" class="panel-content">
+                <div id="chat-box" class="chat-messages"></div>
+                <div class="chat-input-row">
+                    <input type="text" id="user-chat-input" class="chat-input" placeholder="Digite algo...">
+                    <button class="chat-send-btn" onclick="sendUserChat()">↑</button>
+                </div>
+            </div>
+
+            <!-- ── Painel SUPORTE ───────────────────────────────────── -->
+            <div id="panel-support" class="panel-content" style="display:none;padding:20px;gap:14px">
+                <div>
+                    <h3 style="font-family:'Montserrat',sans-serif;font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:4px">Fale com nossa equipe</h3>
+                    <p style="font-family:'Lato',sans-serif;font-size:13px;color:var(--text-secondary)">Sua mensagem será respondida em breve.</p>
+                </div>
+                <textarea id="support-input" rows="4" placeholder="Escreva sua dúvida aqui..."
+                    style="width:100%;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text-primary);font-family:'Lato',sans-serif;font-size:13px;resize:none;outline:none;transition:border-color .2s"
+                    onfocus="this.style.borderColor='var(--accent-gold)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+                <button onclick="sendSupport()"
+                    style="background:linear-gradient(135deg,var(--accent-gold),var(--accent-gold-light));color:#0a0a0f;border:none;border-radius:8px;padding:12px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;cursor:pointer;width:100%;transition:opacity .15s"
+                    onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+                    Enviar mensagem
+                </button>
+                <div id="support-status" style="display:none;text-align:center;color:var(--success);font-family:'Lato',sans-serif;font-size:13px;font-weight:700">
+                    ✅ Mensagem enviada! Responderemos em breve.
+                </div>
+            </div>
+
+            <!-- ── Painel OFERTA ────────────────────────────────────── -->
+            <div id="panel-offer" class="panel-content" style="display:none;overflow-y:auto;padding:16px;gap:14px">
+                {% if config and config.offer_image_url %}
+                <img src="{{ config.offer_image_url }}" alt="Oferta" style="width:100%;border-radius:10px;object-fit:cover">
+                {% endif %}
+                <!-- Badge tempo limitado -->
+                <div style="background:rgba(200,130,10,.1);border:1px solid rgba(200,130,10,.25);border-radius:8px;padding:6px 12px;text-align:center">
+                    <span style="font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:var(--accent-gold);text-transform:uppercase;letter-spacing:.06em">⏰ Por tempo limitado</span>
+                </div>
+                <!-- Título e preços -->
+                <div style="text-align:center">
+                    <h3 style="font-family:'Montserrat',sans-serif;font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:8px">
+                        {{ config.upsell_cta_text if config else 'Oferta especial' }}
+                    </h3>
+                    {% if config and config.offer_original_price %}
+                    <p style="font-family:'Lato',sans-serif;font-size:13px;color:var(--text-muted);text-decoration:line-through;margin-bottom:2px">De {{ config.offer_original_price }}</p>
+                    {% endif %}
+                    {% if config and config.offer_price %}
+                    <p style="font-family:'Montserrat',sans-serif;font-size:22px;font-weight:800;color:var(--accent-gold)">{{ config.offer_price }}</p>
+                    {% endif %}
+                </div>
+                <!-- Countdown -->
+                <div style="text-align:center">
+                    <p style="font-family:'Lato',sans-serif;font-size:12px;color:var(--text-muted);margin-bottom:6px">Encerra em</p>
+                    <div class="offer-countdown-display">--:--</div>
+                </div>
+                <!-- CTA -->
+                <a id="offer-btn" href="{{ config.upsell_url if config else '#' }}" target="_blank"
+                   class="btn-gold" style="display:block;text-align:center;text-decoration:none;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800"
+                   onclick="trackCTA()">
+                    {{ config.upsell_cta_text if config else 'Quero aproveitar!' }} →
+                </a>
+            </div>
+
+        </div><!-- /panel-section -->
+    </div><!-- /sala-layout -->
+
+    <!-- ── Rodapé fixo de oferta ─────────────────────────────────────── -->
+    <div id="offer-footer" style="display:none">
+        <div style="flex-shrink:0">
+            {% if config and config.offer_original_price %}
+            <p style="font-family:'Lato',sans-serif;font-size:11px;color:var(--text-muted);text-decoration:line-through;line-height:1;margin-bottom:2px">{{ config.offer_original_price }}</p>
             {% endif %}
-            <div style="background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:8px;padding:6px 12px;text-align:center">
-                <span style="color:#f5a623;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">⏰ Por tempo limitado</span>
-            </div>
-            <div style="text-align:center">
-                <h3 style="font-size:17px;font-weight:700;margin-bottom:8px">{{ config.upsell_cta_text if config else 'Oferta especial' }}</h3>
-                {% if config and config.offer_original_price %}
-                <p style="color:var(--text-muted);font-size:13px;text-decoration:line-through">{{ config.offer_original_price }}</p>
-                {% endif %}
-                {% if config and config.offer_price %}
-                <p style="font-size:22px;font-weight:800;color:var(--accent-gold)">{{ config.offer_price }}</p>
-                {% endif %}
-            </div>
-            <div style="text-align:center">
-                <p style="color:var(--text-muted);font-size:12px;margin-bottom:6px">Encerra em</p>
-                <div id="offer-countdown" class="countdown-display">--:--</div>
-            </div>
-            <a id="offer-btn" href="{{ config.upsell_url if config else '#' }}" target="_blank"
-               class="btn-gold" style="display:block;text-align:center;text-decoration:none;font-size:15px"
+            {% if config and config.offer_price %}
+            <p style="font-family:'Montserrat',sans-serif;font-size:17px;font-weight:800;color:var(--accent-gold);line-height:1.2">{{ config.offer_price }}</p>
+            {% endif %}
+        </div>
+        <div style="text-align:center;flex-shrink:0">
+            <p style="font-family:'Lato',sans-serif;font-size:11px;color:var(--text-muted);margin-bottom:1px">Restam</p>
+            <div class="offer-countdown-display" style="font-size:20px">--:--</div>
+        </div>
+        <a href="{{ config.upsell_url if config else '#' }}" target="_blank"
+           class="btn-gold" style="text-decoration:none;font-family:'Montserrat',sans-serif;font-size:13px;font-weight:800;padding:12px 20px;white-space:nowrap;flex-shrink:0"
+           onclick="trackCTA()">
+            QUERO APROVEITAR! →
+        </a>
+    </div>
+
+    <!-- ── Tela de encerramento ────────────────────────────────────────── -->
+    <div id="broadcast-end" style="display:none">
+        <div style="max-width:400px;width:100%">
+            <div style="font-size:56px;margin-bottom:16px">⭐</div>
+            <h2 style="font-family:'Montserrat',sans-serif;font-size:24px;font-weight:800;color:#fff;margin-bottom:8px">Aula encerrada!</h2>
+            <p style="font-family:'Lato',sans-serif;font-size:14px;color:rgba(255,255,255,.55);margin-bottom:28px;line-height:1.5">Mas a oferta ainda está disponível por tempo limitado.</p>
+            {% if config and config.offer_image_url %}
+            <img src="{{ config.offer_image_url }}" alt="Oferta" style="width:100%;max-width:280px;border-radius:12px;margin-bottom:16px">
+            {% endif %}
+            {% if config and config.offer_original_price %}
+            <p style="font-family:'Lato',sans-serif;font-size:13px;color:rgba(255,255,255,.35);text-decoration:line-through;margin-bottom:4px">{{ config.offer_original_price }}</p>
+            {% endif %}
+            {% if config and config.offer_price %}
+            <p style="font-family:'Montserrat',sans-serif;font-size:28px;font-weight:800;color:var(--accent-gold);margin-bottom:24px">{{ config.offer_price }}</p>
+            {% endif %}
+            <a href="{{ config.upsell_url if config else '#' }}" target="_blank"
+               class="btn-gold" style="display:inline-block;text-decoration:none;font-family:'Montserrat',sans-serif;font-size:15px;font-weight:800;padding:16px 32px"
                onclick="trackCTA()">
                 {{ config.upsell_cta_text if config else 'Quero aproveitar!' }} →
             </a>
         </div>
-
-    </div><!-- /panel-right -->
-</div><!-- /sala-grid -->
-
-<!-- ── Rodapé fixo de oferta ─────────────────────────────────────── -->
-<div id="offer-footer" style="display:none">
-    <div>
-        {% if config and config.offer_original_price %}
-        <p style="font-size:11px;color:var(--text-muted);text-decoration:line-through;line-height:1">{{ config.offer_original_price }}</p>
-        {% endif %}
-        {% if config and config.offer_price %}
-        <p style="font-size:17px;font-weight:800;color:var(--accent-gold);line-height:1.2">{{ config.offer_price }}</p>
-        {% endif %}
     </div>
-    <div style="text-align:center">
-        <p style="font-size:11px;color:var(--text-muted)">Restam</p>
-        <div id="footer-countdown" style="font-size:20px;font-weight:800;color:var(--accent-gold);font-family:'Inter',sans-serif">--:--</div>
-    </div>
-    <a id="footer-offer-btn" href="{{ config.upsell_url if config else '#' }}" target="_blank"
-       class="btn-gold" style="text-decoration:none;font-size:14px;padding:12px 20px;white-space:nowrap"
-       onclick="trackCTA()">
-        QUERO APROVEITAR! →
-    </a>
-</div>
 
-<!-- ── Tela de encerramento ──────────────────────────────────────── -->
-<div id="broadcast-end" style="display:none">
-    <div style="max-width:420px">
-        <div style="font-size:48px;margin-bottom:16px">🎬</div>
-        <h2 style="font-size:26px;font-weight:800;margin-bottom:8px">Aula encerrada!</h2>
-        <p style="color:var(--text-secondary);margin-bottom:24px">Mas a oferta ainda está disponível por tempo limitado.</p>
-        {% if config and config.offer_image_url %}
-        <img src="{{ config.offer_image_url }}" alt="Oferta" style="width:100%;max-width:300px;border-radius:12px;margin-bottom:16px">
-        {% endif %}
-        {% if config and config.offer_price %}
-        <p style="font-size:26px;font-weight:800;color:var(--accent-gold);margin-bottom:20px">{{ config.offer_price }}</p>
-        {% endif %}
-        <a href="{{ config.upsell_url if config else '#' }}" target="_blank"
-           class="btn-gold" style="display:inline-block;text-decoration:none;font-size:16px;padding:16px 32px"
-           onclick="trackCTA()">
-            {{ config.upsell_cta_text if config else 'Quero aproveitar!' }} →
-        </a>
-    </div>
-</div>
+</div><!-- /sala-wrapper -->
 
-<!-- Dados para o JS -->
+<!-- ── Dados para o JS ──────────────────────────────────────────────────── -->
 <script>
 window.WEBINAR_ID = {{ config.id if config else 'null' }};
 window.WEBINAR_CONFIG = {
@@ -315,7 +490,8 @@ window.WEBINAR_CONFIG = {
     ctaText: "{{ config.upsell_cta_text if config else '' }}",
     chatbotResponses: {{ (config.chatbot_responses or '[]') | safe if config else '[]' }},
     offerOriginalPrice: "{{ config.offer_original_price if config else '' }}",
-    offerPrice: "{{ config.offer_price if config else '' }}"
+    offerPrice: "{{ config.offer_price if config else '' }}",
+    pitchSecond: {{ config.pitch_second if config and config.pitch_second else 0 }}
 };
 </script>
 <script src="/static/webinar-engine.js"></script>

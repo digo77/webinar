@@ -8,8 +8,10 @@ class Registrant(db.Model):
     __tablename__ = 'registrants'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.Text)
-    email = db.Column(db.Text)
-    phone = db.Column(db.Text)
+    email = db.Column(db.Text)  # nullable — mantido para compatibilidade Hotmart
+    phone_country_code = db.Column(db.Text, default='+55')
+    phone_number = db.Column(db.Text)
+    phone = db.Column(db.Text)  # campo legado
     hotmart_transaction = db.Column(db.Text, unique=True)
     token = db.Column(db.Text, unique=True)
     webinar_id = db.Column(db.Integer, db.ForeignKey('webinar_config.id'))
@@ -37,10 +39,11 @@ class WebinarConfig(db.Model):
     upsell_cta_text = db.Column(db.Text)
     test_date = db.Column(db.Text)
     slug = db.Column(db.Text, unique=True)
-    # Campos de oferta
+    # Oferta
     offer_image_url = db.Column(db.Text)
     offer_original_price = db.Column(db.Text)
     offer_price = db.Column(db.Text)
+    pitch_second = db.Column(db.Integer, default=0)
     # Chatbot
     chatbot_responses = db.Column(db.Text)  # JSON: [{"keyword":"oi","response":"Olá!"}]
     # Página de registro configurável

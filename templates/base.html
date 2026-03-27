@@ -6,35 +6,40 @@
     <title>{% block title %}AutoWebinar{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
-            --bg-primary: #0a0a0f;
-            --bg-secondary: #12121a;
-            --bg-card: #1a1a24;
-            --bg-elevated: #22222f;
-            --accent-gold: #f5a623;
-            --accent-gold-light: #ffc85a;
-            --accent-gold-dark: #d4841a;
-            --text-primary: #ffffff;
-            --text-secondary: #a0a0b8;
-            --text-muted: #606078;
+            --bg-primary: #faf8f3;
+            --bg-secondary: #f0ede6;
+            --bg-card: #ffffff;
+            --bg-elevated: #ffffff;
+            --accent-gold: #c8820a;
+            --accent-gold-light: #f5a623;
+            --accent-gold-dark: #8a5a06;
+            --text-primary: #1a1a2e;
+            --text-secondary: #666660;
+            --text-muted: #aaa898;
+            --border: #ede8de;
+            --border-strong: #ddd8c8;
             --success: #22c55e;
             --danger: #ef4444;
-            --border: #2a2a3a;
         }
         * { box-sizing: border-box; }
         body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-family: 'Lato', system-ui, -apple-system, sans-serif;
             background-color: var(--bg-primary);
             color: var(--text-primary);
             min-height: 100vh;
         }
+        h1, h2, h3, h4, h5, h6, .font-heading {
+            font-family: 'Montserrat', sans-serif;
+        }
         .btn-gold {
             background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light));
             color: #0a0a0f;
-            font-weight: 700;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
             border-radius: 8px;
             padding: 14px 28px;
             border: none;
@@ -44,17 +49,18 @@
             text-align: center;
             text-decoration: none;
         }
-        .btn-gold:hover { opacity: .92; }
+        .btn-gold:hover { opacity: .9; }
         .btn-gold:active { transform: scale(.98); }
         .card {
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 12px;
-            box-shadow: 0 4px 24px rgba(0,0,0,.4);
+            box-shadow: 0 2px 12px rgba(0,0,0,.06);
         }
         .badge {
             border-radius: 20px;
             padding: 2px 12px;
+            font-family: 'Montserrat', sans-serif;
             font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
@@ -75,10 +81,14 @@
             to { opacity: 1; transform: translateY(0); }
         }
         .slide-down { animation: slideDown .35s ease-out; }
+        @keyframes slideInRight {
+            from { transform: translateX(110%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
         /* scrollbar */
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: var(--bg-secondary); }
-        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
     </style>
     {% block head %}{% endblock %}
 </head>

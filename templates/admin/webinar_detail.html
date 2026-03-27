@@ -169,9 +169,25 @@
                         <input class="adm-input" type="text" name="upsell_cta_text" value="{{ webinar.upsell_cta_text or '' }}" placeholder="Quero aproveitar!">
                     </div>
                 </div>
-                <div style="margin-bottom:14px">
-                    <label class="adm-label">Data de Teste <span style="color:var(--text-muted);font-weight:400">(deixe vazio para usar agora −20 min)</span></label>
-                    <input class="adm-input" type="datetime-local" name="test_date" value="{{ webinar.test_date or '' }}" style="width:auto">
+                <div class="grid-2" style="margin-bottom:14px">
+                    <div>
+                        <label class="adm-label">Segundo do pitch <span style="color:var(--text-muted);font-weight:400">(abertura da oferta)</span></label>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <input class="adm-input" type="number" name="pitch_second" id="pitch-second-input"
+                                   value="{{ webinar.pitch_second or 0 }}" min="0" placeholder="ex: 1800 = 30 min"
+                                   oninput="updatePitchDisplay(this.value)" style="flex:1">
+                            <span id="pitch-second-display" style="font-size:12px;color:var(--accent-gold);font-weight:700;white-space:nowrap;min-width:48px">
+                                {% if webinar.pitch_second and webinar.pitch_second > 0 %}
+                                {{ '%d:%02d'|format(webinar.pitch_second // 60, webinar.pitch_second % 60) }}
+                                {% else %}--:--{% endif %}
+                            </span>
+                        </div>
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px">ex: 1800 = 30 min · 0 = desativado</p>
+                    </div>
+                    <div>
+                        <label class="adm-label">Data de Teste <span style="color:var(--text-muted);font-weight:400">(deixe vazio para agora −20 min)</span></label>
+                        <input class="adm-input" type="datetime-local" name="test_date" value="{{ webinar.test_date or '' }}">
+                    </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:16px">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-secondary)">
@@ -453,6 +469,17 @@
 </div>
 
 <script>
+// ── Pitch second display ──────────────────────────────────────────────────
+function updatePitchDisplay(val) {
+    const sec = parseInt(val) || 0;
+    const el = document.getElementById('pitch-second-display');
+    if (!el) return;
+    if (sec <= 0) { el.textContent = '--:--'; return; }
+    const m = Math.floor(sec / 60);
+    const s = String(sec % 60).padStart(2, '0');
+    el.textContent = m + ':' + s;
+}
+
 // ── Abas de configuração ──────────────────────────────────────────────────
 function showTab(name) {
     document.querySelectorAll('.cfg-panel').forEach(p => p.classList.remove('active'));

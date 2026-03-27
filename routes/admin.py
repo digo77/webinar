@@ -157,6 +157,7 @@ def webinar_edit(webinar_id):
     webinar.offer_image_url = request.form.get('offer_image_url', webinar.offer_image_url)
     webinar.offer_original_price = request.form.get('offer_original_price', webinar.offer_original_price)
     webinar.offer_price = request.form.get('offer_price', webinar.offer_price)
+    webinar.pitch_second = int(request.form.get('pitch_second', webinar.pitch_second or 0) or 0)
     webinar.chatbot_responses = request.form.get('chatbot_responses', webinar.chatbot_responses)
     webinar.register_mode = int(request.form.get('register_mode', webinar.register_mode or 1))
     webinar.register_headline = request.form.get('register_headline', webinar.register_headline)

@@ -23,6 +23,7 @@ def migrate_db(app):
             'offer_image_url': 'TEXT',
             'offer_original_price': 'TEXT',
             'offer_price': 'TEXT',
+            'pitch_second': 'INTEGER DEFAULT 0',
             'chatbot_responses': 'TEXT',
             'register_mode': 'INTEGER DEFAULT 1',
             'register_headline': 'TEXT',
@@ -39,8 +40,14 @@ def migrate_db(app):
 
         # registrants novas colunas
         r_cols = {c['name'] for c in inspector.get_columns('registrants')}
-        if 'webinar_id' not in r_cols:
-            db.session.execute(text('ALTER TABLE registrants ADD COLUMN webinar_id INTEGER'))
+        r_new = {
+            'webinar_id': 'INTEGER',
+            'phone_country_code': "TEXT DEFAULT '+55'",
+            'phone_number': 'TEXT',
+        }
+        for col, typedef in r_new.items():
+            if col not in r_cols:
+                db.session.execute(text(f'ALTER TABLE registrants ADD COLUMN {col} {typedef}'))
 
         db.session.commit()
 

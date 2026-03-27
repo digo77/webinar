@@ -1,10 +1,26 @@
 /**
- * AutoWebinar Engine v2 — Modular
+ * AutoWebinar Engine v3 — Modular WebinarEngine
  */
 (function () {
     'use strict';
 
-    // ── Utils ────────────────────────────────────────────────────────────────
+    // ── Nomes brasileiros ─────────────────────────────────────────────────────
+    const NOMES_BR = [
+        'Ana Paula', 'Maria Clara', 'Juliana', 'Fernanda', 'Camila',
+        'Patrícia', 'Daniela', 'Mariana', 'Gabriela', 'Beatriz',
+        'Larissa', 'Letícia', 'Vanessa', 'Renata', 'Carolina',
+        'Amanda', 'Priscila', 'Mônica', 'Sandra', 'Cristina',
+        'João', 'Carlos', 'Pedro', 'Lucas', 'Marcos',
+        'André', 'Rafael', 'Bruno', 'Felipe', 'Roberto'
+    ];
+    const SOBRENOMES_BR = [
+        'Silva', 'Santos', 'Oliveira', 'Souza', 'Rodrigues',
+        'Ferreira', 'Alves', 'Pereira', 'Lima', 'Gomes',
+        'Costa', 'Ribeiro', 'Martins', 'Carvalho', 'Almeida',
+        'Lopes', 'Sousa', 'Fernandes', 'Vieira', 'Barbosa'
+    ];
+
+    // ── Utils ─────────────────────────────────────────────────────────────────
     function escHtml(str) {
         const d = document.createElement('div');
         d.textContent = String(str || '');
@@ -18,258 +34,348 @@
     function randomBetween(a, b) {
         return a + Math.random() * (b - a);
     }
-    // Gera cor de avatar baseada no nome (hash simples)
     function avatarColor(name) {
-        const colors = ['#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c','#3498db','#9b59b6','#e91e63','#00bcd4','#4caf50'];
+        const colors = ['#e74c3c','#e67e22','#c8820a','#2ecc71','#1abc9c','#3498db','#9b59b6','#e91e63','#00bcd4','#4caf50'];
         let hash = 0;
         for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
         return colors[Math.abs(hash) % colors.length];
     }
 
-    // ── Estado global ────────────────────────────────────────────────────────
-    let events = [];
-    let firedEvents = new Set();
-    let currentTime = 0;
-    let vturbResponding = false;
-
-    // ── Elementos DOM ────────────────────────────────────────────────────────
-    const chatBox = document.getElementById('chat-box');
-    const viewerCountEl = document.getElementById('viewer-count');
-
     // ══════════════════════════════════════════════════════════════════════════
-    // ChatEngine
+    // WebinarEngine
     // ══════════════════════════════════════════════════════════════════════════
-    const ChatEngine = {
-        addMessage(author, message, isUser) {
-            if (!chatBox) return;
-            const div = document.createElement('div');
-            div.className = 'chat-msg';
-            const color = isUser ? '#f5a623' : avatarColor(author);
-            const initial = author.charAt(0).toUpperCase();
-            const nameColor = isUser ? '#f5a623' : '#c0c0d8';
-            div.innerHTML =
-                '<div style="display:flex;gap:8px;align-items:flex-start">' +
-                    '<div class="chat-avatar" style="background:' + color + ';color:#fff;font-size:11px;font-weight:700;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">' + initial + '</div>' +
-                    '<div>' +
-                        '<span style="font-size:12px;font-weight:700;color:' + nameColor + '">' + escHtml(author) + '</span>' +
-                        '<p style="font-size:13px;color:#d0d0e0;margin:2px 0 0;line-height:1.4">' + escHtml(message) + '</p>' +
-                    '</div>' +
-                '</div>';
-            chatBox.appendChild(div);
-            chatBox.scrollTop = chatBox.scrollHeight;
+    const WebinarEngine = {
+        currentTime: 0,
+        events: [],
+        firedEvents: new Set(),
+        offerActive: false,
+        viewerCount: 0,
+
+        async init() {
+            await this.loadEvents();
+            this.startVturbListener();
+            this.Viewers.startAnimation();
+            this.Chatbot.init();
+            this.Tracking.init();
+            switchTab('chat');
         },
 
-        addPurchaseBanner(name) {
-            if (!chatBox) return;
-            const div = document.createElement('div');
-            div.className = 'purchase-banner';
-            div.innerHTML = '<span style="color:#f5a623;font-weight:700;font-size:13px">⭐ ' + escHtml(name) + ' acabou de garantir sua vaga!</span>';
-            chatBox.appendChild(div);
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
-    };
+        async loadEvents() {
+            try {
+                const qs = window.WEBINAR_ID ? '?webinar_id=' + window.WEBINAR_ID : '';
+                const resp = await fetch('/api/events' + qs);
+                this.events = await resp.json();
+                this.events.sort((a, b) => a.trigger_second - b.trigger_second);
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // OfferEngine
-    // ══════════════════════════════════════════════════════════════════════════
-    const OfferEngine = {
-        countdownInterval: null,
+                // Auto-injeta cta_popup no pitch_second se não houver evento manual
+                const pitchSec = (window.WEBINAR_CONFIG || {}).pitchSecond || 0;
+                if (pitchSec > 0) {
+                    const hasManualCta = this.events.some(e => e.event_type === 'cta_popup');
+                    if (!hasManualCta) {
+                        this.events.push({
+                            id: '__pitch_auto__',
+                            trigger_second: pitchSec,
+                            event_type: 'cta_popup',
+                            payload: { countdown_minutes: 20 }
+                        });
+                        this.events.sort((a, b) => a.trigger_second - b.trigger_second);
+                    }
+                }
+            } catch (e) {
+                console.error('[WebinarEngine] Erro ao carregar eventos:', e);
+            }
+        },
 
-        activate(countdownMinutes) {
-            // Mostra aba oferta
-            const tabOffer = document.getElementById('tab-offer');
-            if (tabOffer) { tabOffer.style.display = ''; }
-            switchTab('offer');
+        startVturbListener() {
+            let vturbResponding = false;
+            const self = this;
 
-            // Rodapé fixo
-            const footer = document.getElementById('offer-footer');
-            if (footer) footer.style.display = 'flex';
+            window.addEventListener('message', function (e) {
+                if (!e.data || typeof e.data !== 'object') return;
+                let t = null;
+                if (e.data.event === 'timeupdate' && typeof e.data.currentTime === 'number') t = e.data.currentTime;
+                if (e.data.type === 'timeupdate' && typeof e.data.time === 'number') t = e.data.time;
+                if (e.data.type === 'timeupdate' && typeof e.data.currentTime === 'number') t = e.data.currentTime;
+                if (t !== null) {
+                    vturbResponding = true;
+                    self.currentTime = t;
+                    self.tick(t);
+                }
+                if (e.data.event === 'ended' || e.data.type === 'ended') {
+                    self.Offer.showEndBroadcast();
+                }
+            });
 
-            // Inicia countdown
-            if (countdownMinutes) {
-                let remaining = countdownMinutes * 60;
-                this.countdownInterval = setInterval(() => {
+            // Fallback: timer local se VTurb não responder em 10s
+            setTimeout(function () {
+                if (!vturbResponding) {
+                    console.log('[WebinarEngine] Fallback timer ativado');
+                    const start = Date.now();
+                    setInterval(function () {
+                        if (vturbResponding) return;
+                        self.currentTime = (Date.now() - start) / 1000;
+                        self.tick(self.currentTime);
+                    }, 1000);
+                }
+            }, 10000);
+        },
+
+        tick(second) {
+            for (const evt of this.events) {
+                if (this.firedEvents.has(evt.id)) continue;
+                if (second >= evt.trigger_second) {
+                    this.firedEvents.add(evt.id);
+                    this.fireEvent(evt);
+                }
+            }
+        },
+
+        fireEvent(evt) {
+            const p = evt.payload || {};
+            const self = this;
+            switch (evt.event_type) {
+                case 'chat':
+                    setTimeout(function () {
+                        self.Chat.addMessage(p.author || 'Participante', p.message || '');
+                    }, randomBetween(0, 3000));
+                    break;
+
+                case 'purchase_notification':
+                    // Exibe nomes do payload (legado)
+                    if (Array.isArray(p.names)) {
+                        p.names.forEach(function (name, i) {
+                            setTimeout(function () {
+                                self.Chat.addPurchaseBanner(name);
+                            }, i * randomBetween(15000, 30000));
+                        });
+                    }
+                    break;
+
+                case 'cta_popup':
+                    self.Offer.activate(p.countdown_minutes || 20);
+                    break;
+
+                case 'end_broadcast':
+                    self.Offer.showEndBroadcast();
+                    break;
+
+                case 'poll':
+                    // Implementação futura
+                    break;
+            }
+        },
+
+        // ── Chat ──────────────────────────────────────────────────────────────
+        Chat: {
+            get box() { return document.getElementById('chat-box'); },
+
+            addMessage(author, message, isUser) {
+                const box = this.box;
+                if (!box) return;
+                const div = document.createElement('div');
+                div.className = 'chat-msg';
+                const color = isUser ? 'var(--accent-gold)' : avatarColor(author);
+                const initial = author.charAt(0).toUpperCase();
+                div.innerHTML =
+                    '<div style="display:flex;gap:8px;align-items:flex-start">' +
+                        '<div style="width:28px;height:28px;border-radius:50%;background:' + color + ';display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:#fff;flex-shrink:0">' + escHtml(initial) + '</div>' +
+                        '<div style="flex:1;min-width:0">' +
+                            '<span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--accent-gold)">' + escHtml(author) + '</span>' +
+                            '<p style="font-family:Lato,sans-serif;font-size:12px;color:var(--text-primary);margin:2px 0 0;line-height:1.4">' + escHtml(message) + '</p>' +
+                        '</div>' +
+                    '</div>';
+                box.appendChild(div);
+                this.scrollToBottom();
+            },
+
+            addPurchaseBanner(name) {
+                const box = this.box;
+                if (!box) return;
+                // Remove banner anterior se existir
+                const old = box.querySelector('.purchase-banner');
+                if (old) {
+                    old.style.transition = 'opacity 0.3s';
+                    old.style.opacity = '0';
+                    setTimeout(function () { if (old.parentNode) old.remove(); }, 300);
+                }
+                const div = document.createElement('div');
+                div.className = 'purchase-banner';
+                div.innerHTML =
+                    '<span style="font-size:14px">⭐</span>' +
+                    '<span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:600;color:#8a6010">' +
+                        escHtml(name) + ' acabou de garantir sua vaga!' +
+                    '</span>';
+                box.appendChild(div);
+                this.scrollToBottom();
+                // Remove após 4 segundos
+                setTimeout(function () {
+                    if (div.parentNode) {
+                        div.style.transition = 'opacity 0.5s ease';
+                        div.style.opacity = '0';
+                        setTimeout(function () { if (div.parentNode) div.remove(); }, 500);
+                    }
+                }, 4000);
+            },
+
+            scrollToBottom() {
+                const box = this.box;
+                if (box) box.scrollTop = box.scrollHeight;
+            }
+        },
+
+        // ── Offer ─────────────────────────────────────────────────────────────
+        Offer: {
+            active: false,
+            _cdInterval: null,
+
+            activate(countdownMinutes) {
+                if (this.active) return;
+                this.active = true;
+                WebinarEngine.offerActive = true;
+
+                // Mostra aba oferta com badge pulsante
+                const tabOffer = document.getElementById('tab-offer');
+                if (tabOffer) {
+                    tabOffer.style.display = '';
+                    tabOffer.classList.add('tab-offer-active');
+                }
+                switchTab('offer');
+
+                // Mostra rodapé
+                this.showFooterCTA();
+
+                // Countdown
+                this.startCountdown(countdownMinutes);
+
+                // Inicia loop de banners de compra
+                WebinarEngine.Purchases.startLoop();
+            },
+
+            startCountdown(minutes) {
+                let remaining = minutes * 60;
+                const update = function () {
                     if (remaining <= 0) {
-                        clearInterval(this.countdownInterval);
-                        const offerCd = document.getElementById('offer-countdown');
-                        const footerCd = document.getElementById('footer-countdown');
-                        if (offerCd) offerCd.textContent = 'Encerrado!';
-                        if (footerCd) footerCd.textContent = 'Encerrado!';
+                        clearInterval(WebinarEngine.Offer._cdInterval);
+                        document.querySelectorAll('.offer-countdown-display').forEach(function (el) {
+                            el.textContent = 'Encerrado!';
+                        });
+                        const footer = document.getElementById('offer-footer');
                         if (footer) footer.style.display = 'none';
                         return;
                     }
                     const txt = fmtTime(remaining);
-                    const offerCd = document.getElementById('offer-countdown');
-                    const footerCd = document.getElementById('footer-countdown');
-                    if (offerCd) offerCd.textContent = txt;
-                    if (footerCd) footerCd.textContent = txt;
-                    remaining--;
-                }, 1000);
-            }
-        },
-
-        showEndBroadcast() {
-            const el = document.getElementById('broadcast-end');
-            if (el) el.style.display = 'flex';
-        }
-    };
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // ViewerCounter
-    // ══════════════════════════════════════════════════════════════════════════
-    const ViewerCounter = {
-        current: 47,
-        init() {
-            this.current = (window.WEBINAR_CONFIG && window.WEBINAR_CONFIG.attendeeBase) || 47;
-            this.update();
-            // Intervalo aleatório entre 8s e 15s
-            const tick = () => {
-                this.update();
-                setTimeout(tick, randomBetween(8000, 15000));
-            };
-            setTimeout(tick, randomBetween(8000, 15000));
-        },
-        update() {
-            const delta = Math.floor(Math.random() * 7) - 3; // -3 a +3
-            this.current = Math.max(this.current - 5, this.current + delta);
-            if (viewerCountEl) viewerCountEl.textContent = this.current;
-        }
-    };
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // ChatbotEngine
-    // ══════════════════════════════════════════════════════════════════════════
-    const ChatbotEngine = {
-        responses: [],
-        init() {
-            const cfg = window.WEBINAR_CONFIG;
-            if (cfg && Array.isArray(cfg.chatbotResponses)) {
-                this.responses = cfg.chatbotResponses;
-            }
-        },
-        check(message) {
-            const msg = message.toLowerCase();
-            for (const r of this.responses) {
-                if (r.keyword && msg.includes(r.keyword.toLowerCase())) {
-                    const delay = randomBetween(2000, 4000);
-                    setTimeout(() => {
-                        ChatEngine.addMessage('Equipe', r.response, false);
-                    }, delay);
-                    break;
-                }
-            }
-        }
-    };
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // TrackingEngine
-    // ══════════════════════════════════════════════════════════════════════════
-    const TrackingEngine = {
-        init() {
-            setInterval(() => {
-                if (currentTime > 0) {
-                    fetch('/api/track', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ watch_time: Math.floor(currentTime) })
-                    }).catch(() => {});
-                }
-            }, 30000);
-        },
-        trackCTA() {
-            fetch('/api/track', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ watch_time: Math.floor(currentTime), clicked_cta: true })
-            }).catch(() => {});
-        }
-    };
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // Event Processor
-    // ══════════════════════════════════════════════════════════════════════════
-    function processEvents(time) {
-        for (const evt of events) {
-            if (firedEvents.has(evt.id)) continue;
-            if (time >= evt.trigger_second) {
-                firedEvents.add(evt.id);
-                fireEvent(evt);
-            }
-        }
-    }
-
-    function fireEvent(evt) {
-        const p = evt.payload || {};
-        switch (evt.event_type) {
-            case 'chat':
-                // Delay aleatório 0-3s para parecer natural
-                setTimeout(() => {
-                    ChatEngine.addMessage(p.author || 'Participante', p.message || '');
-                }, randomBetween(0, 3000));
-                break;
-
-            case 'purchase_notification':
-                if (Array.isArray(p.names)) {
-                    p.names.forEach((name, i) => {
-                        setTimeout(() => {
-                            ChatEngine.addPurchaseBanner(name);
-                        }, i * randomBetween(15000, 30000));
+                    document.querySelectorAll('.offer-countdown-display').forEach(function (el) {
+                        el.textContent = txt;
                     });
+                    remaining--;
+                };
+                update();
+                this._cdInterval = setInterval(update, 1000);
+            },
+
+            showFooterCTA() {
+                const footer = document.getElementById('offer-footer');
+                if (footer) footer.style.display = 'flex';
+            },
+
+            showEndBroadcast() {
+                const el = document.getElementById('broadcast-end');
+                if (el) el.style.display = 'flex';
+            }
+        },
+
+        // ── Viewers ───────────────────────────────────────────────────────────
+        Viewers: {
+            current: 47,
+            startAnimation() {
+                const cfg = window.WEBINAR_CONFIG;
+                this.current = (cfg && cfg.attendeeBase) || 47;
+                const el = document.getElementById('viewer-count');
+                if (el) el.textContent = this.current;
+                const self = this;
+                const tick = function () {
+                    const delta = Math.floor(Math.random() * 7) - 3; // -3 a +3
+                    self.current = Math.max(10, self.current + delta);
+                    if (el) el.textContent = self.current;
+                    setTimeout(tick, randomBetween(8000, 15000));
+                };
+                setTimeout(tick, randomBetween(8000, 15000));
+            }
+        },
+
+        // ── Purchases ─────────────────────────────────────────────────────────
+        Purchases: {
+            _running: false,
+            generateName() {
+                const nome = NOMES_BR[Math.floor(Math.random() * NOMES_BR.length)];
+                const sobrenome = SOBRENOMES_BR[Math.floor(Math.random() * SOBRENOMES_BR.length)];
+                return nome + ' ' + sobrenome;
+            },
+            startLoop() {
+                if (this._running) return;
+                this._running = true;
+                const self = this;
+                const loop = function () {
+                    if (!self._running) return;
+                    WebinarEngine.Chat.addPurchaseBanner(self.generateName());
+                    setTimeout(loop, randomBetween(20000, 45000));
+                };
+                setTimeout(loop, randomBetween(5000, 15000));
+            }
+        },
+
+        // ── Chatbot ───────────────────────────────────────────────────────────
+        Chatbot: {
+            responses: [],
+            init() {
+                const cfg = window.WEBINAR_CONFIG;
+                if (cfg && Array.isArray(cfg.chatbotResponses)) {
+                    this.responses = cfg.chatbotResponses;
                 }
-                break;
+            },
+            check(message) {
+                const msg = message.toLowerCase();
+                for (const r of this.responses) {
+                    if (r.keyword && msg.includes(r.keyword.toLowerCase())) {
+                        setTimeout(function () {
+                            WebinarEngine.Chat.addMessage('Equipe', r.response, false);
+                        }, randomBetween(2000, 4000));
+                        break;
+                    }
+                }
+            }
+        },
 
-            case 'cta_popup':
-                OfferEngine.activate(p.countdown_minutes || 30);
-                break;
-
-            case 'end_broadcast':
-                OfferEngine.showEndBroadcast();
-                break;
-
-            case 'poll':
-                // Implementação futura
-                break;
+        // ── Tracking ──────────────────────────────────────────────────────────
+        Tracking: {
+            init() {
+                const self = WebinarEngine;
+                setInterval(function () {
+                    if (self.currentTime > 0) {
+                        fetch('/api/track', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ watch_time: Math.floor(self.currentTime) })
+                        }).catch(function () {});
+                    }
+                }, 30000);
+            },
+            sendCTAClick() {
+                fetch('/api/track', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        watch_time: Math.floor(WebinarEngine.currentTime),
+                        clicked_cta: true
+                    })
+                }).catch(function () {});
+            }
         }
-    }
+    };
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // VTurb listener + fallback
-    // ══════════════════════════════════════════════════════════════════════════
-    window.addEventListener('message', function (e) {
-        if (!e.data || typeof e.data !== 'object') return;
-        let t = null;
-        if (e.data.event === 'timeupdate' && typeof e.data.currentTime === 'number') t = e.data.currentTime;
-        if (e.data.type === 'timeupdate' && typeof e.data.time === 'number') t = e.data.time;
-        if (e.data.type === 'timeupdate' && typeof e.data.currentTime === 'number') t = e.data.currentTime;
-        if (t !== null) {
-            vturbResponding = true;
-            currentTime = t;
-            processEvents(currentTime);
-        }
-        // Fim de vídeo via VTurb
-        if (e.data.event === 'ended' || e.data.type === 'ended') {
-            OfferEngine.showEndBroadcast();
-        }
-    });
-
-    // Fallback: incrementa tempo local se VTurb não emitir eventos em 10s
-    setTimeout(function () {
-        if (!vturbResponding) {
-            console.log('[WebinarEngine] Fallback timer ativado');
-            const start = Date.now();
-            setInterval(function () {
-                if (vturbResponding) return;
-                currentTime = (Date.now() - start) / 1000;
-                processEvents(currentTime);
-            }, 1000);
-        }
-    }, 10000);
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // UI: Abas
-    // ══════════════════════════════════════════════════════════════════════════
+    // ── UI global ─────────────────────────────────────────────────────────────
     window.switchTab = function (tab) {
-        ['chat', 'support', 'offer'].forEach(t => {
+        ['chat', 'support', 'offer'].forEach(function (t) {
             const panel = document.getElementById('panel-' + t);
             const btn = document.getElementById('tab-' + t);
             if (panel) panel.style.display = (t === tab ? 'flex' : 'none');
@@ -277,30 +383,16 @@
         });
     };
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // UI: Chat do usuário
-    // ══════════════════════════════════════════════════════════════════════════
     window.sendUserChat = function () {
         const input = document.getElementById('user-chat-input');
         if (!input) return;
         const msg = input.value.trim();
         if (!msg) return;
-        ChatEngine.addMessage('Você', msg, true);
-        ChatbotEngine.check(msg);
+        WebinarEngine.Chat.addMessage('Você', msg, true);
+        WebinarEngine.Chatbot.check(msg);
         input.value = '';
     };
 
-    // Enter para enviar no chat
-    const userInput = document.getElementById('user-chat-input');
-    if (userInput) {
-        userInput.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.sendUserChat(); }
-        });
-    }
-
-    // ══════════════════════════════════════════════════════════════════════════
-    // UI: Suporte
-    // ══════════════════════════════════════════════════════════════════════════
     window.sendSupport = async function () {
         const input = document.getElementById('support-input');
         const status = document.getElementById('support-status');
@@ -316,38 +408,38 @@
             input.value = '';
             if (status) status.style.display = 'block';
         } catch (e) {
-            console.error('Erro ao enviar suporte:', e);
+            console.error('[WebinarEngine] Erro ao enviar suporte:', e);
         }
     };
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // UI: Tracking CTA
-    // ══════════════════════════════════════════════════════════════════════════
     window.trackCTA = function () {
-        TrackingEngine.trackCTA();
+        WebinarEngine.Tracking.sendCTAClick();
     };
 
-    // ══════════════════════════════════════════════════════════════════════════
-    // Init
-    // ══════════════════════════════════════════════════════════════════════════
-    async function init() {
-        // Carrega eventos
-        try {
-            const qs = window.WEBINAR_ID ? '?webinar_id=' + window.WEBINAR_ID : '';
-            const resp = await fetch('/api/events' + qs);
-            events = await resp.json();
-            events.sort((a, b) => a.trigger_second - b.trigger_second);
-        } catch (e) {
-            console.error('[WebinarEngine] Erro ao carregar eventos:', e);
+    window.toggleFullscreen = function () {
+        const wrap = document.getElementById('video-wrap');
+        if (!wrap) return;
+        const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+        if (!isFs) {
+            const fn = wrap.requestFullscreen || wrap.webkitRequestFullscreen;
+            if (fn) fn.call(wrap);
+        } else {
+            const fn = document.exitFullscreen || document.webkitExitFullscreen;
+            if (fn) fn.call(document);
         }
+    };
 
-        ViewerCounter.init();
-        ChatbotEngine.init();
-        TrackingEngine.init();
+    // Enter para enviar no chat
+    document.addEventListener('DOMContentLoaded', function () {
+        const userInput = document.getElementById('user-chat-input');
+        if (userInput) {
+            userInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.sendUserChat(); }
+            });
+        }
+    });
 
-        // Garante que painel chat está visível
-        window.switchTab('chat');
-    }
+    // ── Init ─────────────────────────────────────────────────────────────────
+    WebinarEngine.init();
 
-    init();
 })();
