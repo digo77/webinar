@@ -201,7 +201,11 @@ let currentTab = 'text';
         const resp = await fetch('/admin/ai-provider-status');
         const data = await resp.json();
         const badge = document.getElementById('provider-badge');
-        if (data.provider === 'claude') {
+        if (data.provider === 'both') {
+            badge.textContent = '✓ Claude + GPT-4o (fallback automático)';
+            badge.style.color = '#4ade80';
+            badge.style.opacity = '1';
+        } else if (data.provider === 'claude') {
             badge.textContent = '✓ Claude (Anthropic)';
             badge.style.color = '#4ade80';
             badge.style.opacity = '1';

@@ -143,11 +143,12 @@ def transcribe_audio(file_path: str) -> list:
 
 def get_ai_provider() -> str:
     """
-    Retorna qual provedor de IA está disponível: 'claude', 'openai' ou 'none'.
-    Se ambas as chaves estão configuradas, prefere Claude.
+    Retorna qual provedor está configurado: 'claude', 'openai', 'both' ou 'none'.
     """
     anthropic_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
     openai_key = os.environ.get('OPENAI_API_KEY', '').strip()
+    if anthropic_key and openai_key:
+        return 'both'
     if anthropic_key:
         return 'claude'
     if openai_key:
@@ -203,29 +204,43 @@ def suggest_chat_events(transcript_segments: list, product_context: str) -> list
         'Retorne APENAS JSON válido, sem nenhuma explicação ou markdown ao redor.'
     )
 
-    if provider == 'claude':
-        import anthropic as anthropic_sdk
-        client = anthropic_sdk.Anthropic(api_key=os.environ['ANTHROPIC_API_KEY'].strip())
-        response = client.messages.create(
-            model='claude-sonnet-4-5',
-            max_tokens=4096,
-            system=system_prompt,
-            messages=[{'role': 'user', 'content': user_message}],
-        )
-        raw = response.content[0].text.strip()
+    raw = None
+    last_error = None
 
-    else:  # openai
-        from openai import OpenAI
-        client = OpenAI(api_key=os.environ['OPENAI_API_KEY'].strip())
-        response = client.chat.completions.create(
-            model='gpt-4o',
-            max_tokens=4096,
-            messages=[
-                {'role': 'system', 'content': system_prompt},
-                {'role': 'user', 'content': user_message},
-            ],
-        )
-        raw = response.choices[0].message.content.strip()
+    # Tenta Claude primeiro se a chave estiver disponível
+    if os.environ.get('ANTHROPIC_API_KEY', '').strip():
+        try:
+            import anthropic as anthropic_sdk
+            client = anthropic_sdk.Anthropic(api_key=os.environ['ANTHROPIC_API_KEY'].strip())
+            response = client.messages.create(
+                model='claude-sonnet-4-5',
+                max_tokens=4096,
+                system=system_prompt,
+                messages=[{'role': 'user', 'content': user_message}],
+            )
+            raw = response.content[0].text.strip()
+        except Exception as e:
+            last_error = e
+
+    # Se Claude falhou ou não tem chave, tenta GPT-4o
+    if raw is None and os.environ.get('OPENAI_API_KEY', '').strip():
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=os.environ['OPENAI_API_KEY'].strip())
+            response = client.chat.completions.create(
+                model='gpt-4o',
+                max_tokens=4096,
+                messages=[
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': user_message},
+                ],
+            )
+            raw = response.choices[0].message.content.strip()
+        except Exception as e:
+            last_error = e
+
+    if raw is None:
+        raise last_error or ValueError('Nenhum provedor de IA disponível.')
 
     # Remove markdown code fences se presentes
     if raw.startswith('```'):
