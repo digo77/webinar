@@ -36,21 +36,43 @@
         </div>
     </div>
 
-    <!-- Webhook Info -->
-    <div class="bg-gray-900 rounded-xl p-4 mb-8 flex items-center justify-between">
-        <div>
-            <span class="text-gray-400 text-sm">URL do Webhook Hotmart:</span>
-            <code class="ml-2 text-green-400 text-sm bg-gray-800 px-3 py-1 rounded">/webhook/hotmart/{{ webinar.webhook_token }}</code>
+    <!-- Links de acesso -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <!-- Página de Registro -->
+        <div class="bg-gray-900 rounded-xl p-4 flex items-center justify-between">
+            <div>
+                <span class="text-gray-400 text-sm">Página de Registro:</span>
+                {% if webinar.slug %}
+                <code class="ml-2 text-yellow-400 text-sm bg-gray-800 px-3 py-1 rounded">/registrar?w={{ webinar.slug }}</code>
+                {% else %}
+                <span class="ml-2 text-gray-600 text-sm italic">slug não definido</span>
+                {% endif %}
+            </div>
+            {% if webinar.slug %}
+            <div class="flex gap-2">
+                <a href="/registrar?w={{ webinar.slug }}" target="_blank"
+                   class="text-yellow-400 hover:text-yellow-300 text-sm">Abrir</a>
+                <button onclick="navigator.clipboard.writeText(location.origin + '/registrar?w={{ webinar.slug }}')"
+                        class="text-blue-400 hover:text-blue-300 text-sm">Copiar</button>
+            </div>
+            {% endif %}
         </div>
-        <button onclick="navigator.clipboard.writeText(location.origin + '/webhook/hotmart/{{ webinar.webhook_token }}')"
-                class="text-blue-400 hover:text-blue-300 text-sm">Copiar</button>
+        <!-- Webhook Hotmart -->
+        <div class="bg-gray-900 rounded-xl p-4 flex items-center justify-between">
+            <div>
+                <span class="text-gray-400 text-sm">Webhook Hotmart:</span>
+                <code class="ml-2 text-green-400 text-sm bg-gray-800 px-3 py-1 rounded">/webhook/hotmart/{{ webinar.webhook_token }}</code>
+            </div>
+            <button onclick="navigator.clipboard.writeText(location.origin + '/webhook/hotmart/{{ webinar.webhook_token }}')"
+                    class="text-blue-400 hover:text-blue-300 text-sm">Copiar</button>
+        </div>
     </div>
 
     <!-- Editar Configuracao -->
     <div class="bg-gray-900 rounded-xl p-6 mb-8">
         <h2 class="text-lg font-semibold mb-4">Configuracao</h2>
         <form method="POST" action="{{ url_for('admin.webinar_edit', webinar_id=webinar.id) }}">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                 <div>
                     <label class="text-sm text-gray-400">Nome do Webinario</label>
                     <input type="text" name="name" value="{{ webinar.name or '' }}"
@@ -60,6 +82,15 @@
                     <label class="text-sm text-gray-400">Cliente</label>
                     <input type="text" name="client_name" value="{{ webinar.client_name or '' }}"
                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">
+                        Slug
+                        <span class="text-gray-600 ml-1">(URL de registro)</span>
+                    </label>
+                    <input type="text" name="slug" value="{{ webinar.slug or '' }}"
+                           placeholder="ex: cookie-sandwich"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-yellow-500 font-mono text-sm">
                 </div>
                 <div>
                     <label class="text-sm text-gray-400">VTurb Video ID</label>

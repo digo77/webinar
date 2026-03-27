@@ -24,7 +24,8 @@
     // Carrega eventos da timeline
     async function loadEvents() {
         try {
-            const resp = await fetch('/api/events');
+            const qs = window.WEBINAR_ID ? '?webinar_id=' + window.WEBINAR_ID : '';
+            const resp = await fetch('/api/events' + qs);
             events = await resp.json();
             events.sort((a, b) => a.trigger_second - b.trigger_second);
         } catch (e) {
@@ -150,26 +151,22 @@
         viewerInterval = setInterval(update, 8000 + Math.random() * 7000);
     }
 
-    // Tracking periodico
+    // Tracking periodico (usa sessao Flask — cookie enviado automaticamente)
     function startTracking() {
         trackingInterval = setInterval(function () {
             if (currentTime > 0) {
                 fetch('/api/track', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        token: window.WEBINAR_TOKEN,
-                        watch_time: Math.floor(currentTime)
-                    })
+                    body: JSON.stringify({ watch_time: Math.floor(currentTime) })
                 }).catch(function () {});
             }
         }, 30000); // a cada 30s
     }
 
     function trackAction(action) {
-        const data = { token: window.WEBINAR_TOKEN };
+        const data = { watch_time: Math.floor(currentTime) };
         data[action] = true;
-        data.watch_time = Math.floor(currentTime);
         fetch('/api/track', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

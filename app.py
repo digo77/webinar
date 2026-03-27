@@ -18,6 +18,7 @@ def migrate_db(app):
             'client_name': 'TEXT',
             'webhook_token': 'TEXT',
             'test_date': 'TEXT',
+            'slug': 'TEXT',
         }
         for col, typedef in wc_new.items():
             if col not in wc_cols:
@@ -42,10 +43,12 @@ def create_app():
     from routes.webhook import webhook_bp
     from routes.sala import sala_bp
     from routes.admin import admin_bp
+    from routes.registrar import registrar_bp
 
     app.register_blueprint(webhook_bp)
     app.register_blueprint(sala_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(registrar_bp)
 
     # Create tables (novas) + migrate colunas existentes
     with app.app_context():

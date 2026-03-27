@@ -11,7 +11,6 @@ from flask import (Blueprint, current_app, jsonify, redirect,
 
 from models import Registrant, TimelineEvent, WebinarConfig, db
 from services.scheduler import BRT, DAY_NAMES
-from services.token_service import generate_token
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -88,10 +87,12 @@ def dashboard():
 @login_required
 def webinar_create():
     webhook_token = secrets.token_urlsafe(16)
+    raw_slug = request.form.get('slug', '').strip().lower().replace(' ', '-')
     webinar = WebinarConfig(
         name=request.form.get('name', ''),
         client_name=request.form.get('client_name', ''),
         webhook_token=webhook_token,
+        slug=raw_slug if raw_slug else None,
         vturb_video_id=request.form.get('vturb_video_id', ''),
         is_active=bool(request.form.get('is_active')),
         day_of_week=int(request.form.get('day_of_week', 1)),
@@ -144,6 +145,10 @@ def webinar_edit(webinar_id):
     webinar.attendee_count_base = int(request.form.get('attendee_count_base', webinar.attendee_count_base or 47))
     webinar.upsell_url = request.form.get('upsell_url', webinar.upsell_url)
     webinar.upsell_cta_text = request.form.get('upsell_cta_text', webinar.upsell_cta_text)
+
+    # Slug (URL de registro)
+    raw_slug = request.form.get('slug', '').strip().lower().replace(' ', '-')
+    webinar.slug = raw_slug if raw_slug else webinar.slug
 
     # Test date (datetime-local, ex: "2026-03-27T20:00")
     test_date_val = request.form.get('test_date', '').strip()
@@ -298,13 +303,11 @@ def timeline_delete_from_view(webinar_id, event_id):
 
 
 # ---------------------------------------------------------------------------
-# Testar Sala (Feature 1)
+# Testar Sala / Preview (Feature 1)
 # ---------------------------------------------------------------------------
 
-@admin_bp.route('/webinar/<int:webinar_id>/test-token')
-@login_required
-def test_token(webinar_id):
-    """Gera token de teste. Usa test_date do config ou agora - 20min."""
+def _get_or_create_test_registrant(webinar_id, name, email):
+    """Cria ou atualiza registrante de teste e define webinar_date."""
     webinar = WebinarConfig.query.get_or_404(webinar_id)
 
     # Determina data de teste
@@ -318,31 +321,47 @@ def test_token(webinar_id):
     else:
         test_dt = datetime.now(BRT) - timedelta(minutes=20)
 
-    test_email = f"teste-admin-{webinar_id}@autowebinar.local"
-    registrant = Registrant.query.filter_by(email=test_email, webinar_id=webinar_id).first()
-
-    # Armazena como naive (BRT local sem tzinfo, compatível com is_webinar_open)
     naive_dt = test_dt.replace(tzinfo=None)
 
+    registrant = Registrant.query.filter_by(email=email, webinar_id=webinar_id).first()
     if not registrant:
         registrant = Registrant(
-            name='Admin Teste',
-            email=test_email,
+            name=name,
+            email=email,
             webinar_id=webinar_id,
             webinar_date=naive_dt,
         )
         db.session.add(registrant)
-        db.session.flush()
-        token = generate_token(registrant.id, test_email)
-        registrant.token = token
         db.session.commit()
     else:
-        # Sempre atualiza webinar_date para a data de teste atual
         registrant.webinar_date = naive_dt
         db.session.commit()
 
-    sala_url = url_for('sala.sala', token=registrant.token, _external=True)
-    return redirect(sala_url)
+    return registrant
+
+
+@admin_bp.route('/webinar/<int:webinar_id>/test-token')
+@login_required
+def test_token(webinar_id):
+    """Testar sala: cria sessão de teste e redireciona para /sala."""
+    registrant = _get_or_create_test_registrant(
+        webinar_id, 'Admin Teste', f'teste-admin-{webinar_id}@autowebinar.local'
+    )
+    session['registrant_id'] = registrant.id
+    session['webinar_id'] = webinar_id
+    return redirect(url_for('sala.sala'))
+
+
+@admin_bp.route('/preview/<int:webinar_id>')
+@login_required
+def preview(webinar_id):
+    """Preview da sala: cria registrante Preview e abre sala via sessão."""
+    registrant = _get_or_create_test_registrant(
+        webinar_id, 'Preview', f'preview-{webinar_id}@autowebinar.local'
+    )
+    session['registrant_id'] = registrant.id
+    session['webinar_id'] = webinar_id
+    return redirect(url_for('sala.sala'))
 
 
 # ---------------------------------------------------------------------------

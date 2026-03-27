@@ -39,6 +39,7 @@ class WebinarConfig(db.Model):
     upsell_url = db.Column(db.Text)
     upsell_cta_text = db.Column(db.Text)
     test_date = db.Column(db.Text)  # datetime-local ISO string, ex: "2026-03-27T20:00"
+    slug = db.Column(db.Text, unique=True)  # identificador de URL, ex: "cookie-sandwich"
 
 
 class TimelineEvent(db.Model):

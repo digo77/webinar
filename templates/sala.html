@@ -136,7 +136,7 @@
 
 <!-- Dados para o JS -->
 <script>
-    window.WEBINAR_TOKEN = "{{ registrant.token }}";
+    window.WEBINAR_ID = {{ config.id if config else 'null' }};
     window.WEBINAR_CONFIG = {
         attendeeBase: {{ config.attendee_count_base if config else 47 }},
         upsellUrl: "{{ config.upsell_url if config else '' }}",

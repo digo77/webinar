@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if webinar %}{{ webinar.name }}{% else %}Webinário{% endif %} — Acesso</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0a0a0f; color: #f3f4f6; font-family: system-ui, -apple-system, sans-serif; }
+
+        .pulse-dot { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .glow-border:focus {
+            outline: none;
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 3px rgba(245,158,11,.15);
+        }
+
+        .btn-main {
+            background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+            transition: opacity .2s, transform .1s;
+        }
+        .btn-main:hover { opacity: .92; }
+        .btn-main:active { transform: scale(.98); }
+
+        .card {
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(255,255,255,.08);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center px-4 py-12">
+
+<div class="w-full max-w-md mx-auto">
+
+    {% if error and not webinar %}
+    <!-- Webinário não encontrado -->
+    <div class="card rounded-2xl p-8 text-center">
+        <div class="text-5xl mb-4">🔒</div>
+        <h1 class="text-xl font-bold mb-2">Link inválido</h1>
+        <p class="text-gray-400 text-sm">{{ error }}</p>
+    </div>
+
+    {% else %}
+
+    <!-- Badge AO VIVO -->
+    <div class="flex justify-center mb-6">
+        <div class="flex items-center gap-2 bg-red-950/60 border border-red-800/50 rounded-full px-4 py-1.5">
+            <div class="w-2 h-2 bg-red-500 rounded-full pulse-dot"></div>
+            <span class="text-red-400 text-xs font-semibold uppercase tracking-widest">Aula ao vivo</span>
+        </div>
+    </div>
+
+    <!-- Nome do webinário -->
+    <div class="text-center mb-8">
+        {% if webinar and webinar.client_name %}
+        <p class="text-yellow-400 text-sm font-medium mb-2 uppercase tracking-wider">{{ webinar.client_name }}</p>
+        {% endif %}
+        <h1 class="text-2xl sm:text-3xl font-bold leading-tight">
+            {% if webinar %}{{ webinar.name }}{% else %}Aula ao Vivo{% endif %}
+        </h1>
+        <p class="text-gray-400 mt-3 text-sm leading-relaxed">
+            Garanta seu lugar na aula de hoje.<br>
+            O acesso é <span class="text-white font-medium">gratuito</span> — basta preencher seus dados.
+        </p>
+    </div>
+
+    <!-- Card do formulário -->
+    <div class="card rounded-2xl p-6 sm:p-8">
+
+        {% if error %}
+        <div class="bg-red-950/50 border border-red-800/60 rounded-xl px-4 py-3 mb-5 text-red-300 text-sm">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{{ request.url }}" novalidate>
+            <div class="space-y-4">
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-300 mb-1.5">
+                        Seu nome
+                    </label>
+                    <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        required
+                        autocomplete="given-name"
+                        placeholder="Como posso te chamar?"
+                        value="{{ request.form.get('name', '') }}"
+                        class="glow-border w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3
+                               text-white placeholder-gray-500 text-base"
+                    >
+                </div>
+
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-300 mb-1.5">
+                        Seu melhor e-mail
+                    </label>
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        required
+                        autocomplete="email"
+                        placeholder="voce@email.com"
+                        value="{{ request.form.get('email', '') }}"
+                        class="glow-border w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3
+                               text-white placeholder-gray-500 text-base"
+                    >
+                </div>
+
+                <button
+                    type="submit"
+                    class="btn-main w-full rounded-xl px-6 py-4 text-white font-bold text-base mt-2"
+                >
+                    Acessar aula agora →
+                </button>
+            </div>
+        </form>
+
+        <p class="text-center text-xs text-gray-600 mt-5 leading-relaxed">
+            Ao se cadastrar você concorda em receber comunicações.<br>
+            Sem spam. Cancele quando quiser.
+        </p>
+    </div>
+
+    <!-- Prova social mínima -->
+    <div class="flex items-center justify-center gap-2 mt-6 text-gray-500 text-xs">
+        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/>
+        </svg>
+        <span>Pessoas já assistindo agora</span>
+    </div>
+
+    {% endif %}
+</div>
+
+</body>
+</html>
