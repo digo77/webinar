@@ -38,6 +38,7 @@ class WebinarConfig(db.Model):
     attendee_count_base = db.Column(db.Integer, default=47)
     upsell_url = db.Column(db.Text)
     upsell_cta_text = db.Column(db.Text)
+    test_date = db.Column(db.Text)  # datetime-local ISO string, ex: "2026-03-27T20:00"
 
 
 class TimelineEvent(db.Model):

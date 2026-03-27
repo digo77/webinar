@@ -1,114 +1,167 @@
 {% extends "base.html" %}
-{% block title %}Admin - Timeline de Eventos{% endblock %}
+{% block title %}Timeline — {{ webinar.name }}{% endblock %}
 {% block body %}
 <div class="max-w-4xl mx-auto p-6">
-    <div class="flex items-center justify-between mb-8">
-        <h1 class="text-2xl font-bold">Timeline de Eventos</h1>
-        <a href="{{ url_for('admin.dashboard') }}" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition">Voltar</a>
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <a href="{{ url_for('admin.webinar_detail', webinar_id=webinar.id) }}"
+               class="text-gray-400 hover:text-white text-sm">&larr; Voltar</a>
+            <h1 class="text-2xl font-bold mt-1">Timeline Visual</h1>
+            <p class="text-gray-400 text-sm">{{ webinar.name }} &mdash; {{ webinar.client_name }}</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{{ url_for('admin.ai_timeline', webinar_id=webinar.id) }}"
+               class="bg-cyan-700 hover:bg-cyan-600 px-4 py-2 rounded-lg text-sm transition">✨ IA Timeline</a>
+            <a href="{{ url_for('admin.test_token', webinar_id=webinar.id) }}" target="_blank"
+               class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-sm transition">Testar Sala</a>
+        </div>
     </div>
 
-    {% if not config %}
-    <div class="bg-gray-900 rounded-xl p-6 text-center text-gray-400">
-        Configure um webinario ativo primeiro no Dashboard.
-    </div>
-    {% else %}
+    <!-- Preview visual dos eventos existentes -->
+    <div class="bg-gray-900 rounded-xl p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold">Eventos ({{ events|length }})</h2>
+            <span class="text-xs text-gray-500">ordenados por segundo do vídeo</span>
+        </div>
 
-    <!-- Adicionar Evento -->
-    <div class="bg-gray-900 rounded-xl p-6 mb-8">
+        {% if events %}
+        <div class="space-y-2">
+            {% for e in events %}
+            <div class="flex items-start justify-between bg-gray-800/40 rounded-lg px-4 py-3 hover:bg-gray-800/60 transition">
+                <!-- Lado esquerdo: tempo + badge + conteúdo -->
+                <div class="flex items-start gap-3 flex-1 min-w-0">
+                    <!-- Timestamp formatado -->
+                    <span class="shrink-0 font-mono text-sm bg-gray-700 text-gray-200 px-2 py-1 rounded w-14 text-center">
+                        {{ e.time_fmt }}
+                    </span>
+
+                    <!-- Badge de tipo -->
+                    <span class="shrink-0 text-xs font-bold uppercase px-2 py-1 rounded mt-0.5
+                        {% if e.event_type == 'chat' %}bg-blue-900/60 text-blue-300
+                        {% elif e.event_type == 'cta_popup' %}bg-yellow-900/60 text-yellow-300
+                        {% else %}bg-purple-900/60 text-purple-300{% endif %}">
+                        {{ e.event_type }}
+                    </span>
+
+                    <!-- Preview do conteúdo -->
+                    <div class="flex-1 min-w-0">
+                        {% if e.event_type == 'chat' %}
+                            <span class="font-semibold text-white">{{ e.payload.author or '?' }}</span>
+                            <span class="text-gray-300 ml-2">{{ e.payload.message or '' }}</span>
+                        {% elif e.event_type == 'cta_popup' %}
+                            <span class="font-semibold text-yellow-200">{{ e.payload.title or 'CTA' }}</span>
+                            <span class="text-gray-400 ml-2 text-xs">
+                                {{ e.payload.countdown_minutes or 15 }}min
+                                {% if e.payload.url %} · {{ e.payload.url[:40] }}{% if e.payload.url|length > 40 %}...{% endif %}{% endif %}
+                            </span>
+                        {% elif e.event_type == 'poll' %}
+                            <span class="font-semibold text-purple-200">{{ e.payload.question or 'Enquete' }}</span>
+                            {% if e.payload.options %}
+                            <span class="text-gray-400 ml-2 text-xs">{{ e.payload.options | join(' · ') }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-gray-400 text-sm font-mono">{{ e.payload | string | truncate(80) }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Excluir -->
+                <form method="POST"
+                      action="{{ url_for('admin.timeline_delete_from_view', webinar_id=webinar.id, event_id=e.id) }}"
+                      class="shrink-0 ml-4">
+                    <button type="submit"
+                            class="text-red-500 hover:text-red-300 text-xs px-2 py-1 rounded hover:bg-red-900/30 transition"
+                            onclick="return confirm('Excluir este evento?')">
+                        Excluir
+                    </button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-center py-6">Nenhum evento ainda. Adicione abaixo.</p>
+        {% endif %}
+    </div>
+
+    <!-- Formulário de adição -->
+    <div class="bg-gray-900 rounded-xl p-6">
         <h2 class="text-lg font-semibold mb-4">Adicionar Evento</h2>
-        <form method="POST" action="{{ url_for('admin.timeline_add') }}" id="event-form">
+        <form method="POST" action="{{ url_for('admin.timeline_view', webinar_id=webinar.id) }}">
+            <!-- Linha 1: tipo + segundo + botão -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                     <label class="text-sm text-gray-400">Tipo</label>
                     <select name="event_type" id="event-type"
-                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500"
-                            onchange="toggleFields()">
+                            onchange="toggleFields()"
+                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
                         <option value="chat">Chat</option>
                         <option value="cta_popup">CTA Popup</option>
                         <option value="poll">Poll</option>
                     </select>
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">Segundo do video</label>
-                    <input type="number" name="trigger_second" min="0" required
+                    <label class="text-sm text-gray-400">Segundo do vídeo</label>
+                    <input type="number" name="trigger_second" min="0" required placeholder="ex: 120"
                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div class="flex items-end">
+                    <button type="submit"
+                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition">
+                        Salvar evento
+                    </button>
                 </div>
             </div>
 
             <!-- Campos Chat -->
-            <div id="fields-chat" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div id="fields-chat" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
                 <div>
-                    <label class="text-sm text-gray-400">Autor</label>
-                    <input type="text" name="author"
+                    <label class="text-sm text-gray-400">Nome do autor</label>
+                    <input type="text" name="author" placeholder="ex: Mariana Silva"
                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
                 </div>
                 <div>
                     <label class="text-sm text-gray-400">Mensagem</label>
-                    <input type="text" name="message"
+                    <input type="text" name="message" placeholder="ex: Adorei essa parte! 😍"
                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
                 </div>
             </div>
 
             <!-- Campos CTA -->
-            <div id="fields-cta" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 hidden">
+            <div id="fields-cta" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2 hidden">
                 <div>
-                    <label class="text-sm text-gray-400">Titulo</label>
-                    <input type="text" name="title"
+                    <label class="text-sm text-gray-400">Título do popup</label>
+                    <input type="text" name="title" placeholder="ex: Oferta especial!"
                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
                 </div>
                 <div>
                     <label class="text-sm text-gray-400">Countdown (minutos)</label>
-                    <input type="number" name="countdown_minutes" value="15"
+                    <input type="number" name="countdown_minutes" value="15" min="1"
                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">URL</label>
-                    <input type="text" name="url"
+                    <label class="text-sm text-gray-400">URL do botão</label>
+                    <input type="text" name="url" placeholder="https://..."
                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
                 </div>
             </div>
 
             <!-- Campos Poll -->
-            <div id="fields-poll" class="mb-4 hidden">
+            <div id="fields-poll" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2 hidden">
                 <div>
-                    <label class="text-sm text-gray-400">Payload JSON</label>
-                    <textarea name="payload" rows="3"
-                              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500 font-mono text-sm"></textarea>
+                    <label class="text-sm text-gray-400">Pergunta</label>
+                    <input type="text" name="question" placeholder="ex: Você já fez cookies antes?"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Opções (separadas por vírgula)</label>
+                    <input type="text" name="options" placeholder="ex: Sim,Não,Às vezes"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
                 </div>
             </div>
-
-            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition">
-                Adicionar
-            </button>
         </form>
     </div>
-
-    <!-- Lista de Eventos -->
-    <div class="bg-gray-900 rounded-xl p-6">
-        <h2 class="text-lg font-semibold mb-4">Eventos ({{ events|length }})</h2>
-        {% if events %}
-        <div class="space-y-3">
-            {% for e in events %}
-            <div class="flex items-center justify-between bg-gray-800/50 rounded-lg px-4 py-3">
-                <div class="flex items-center gap-4">
-                    <span class="text-xs font-mono bg-gray-700 px-2 py-1 rounded">{{ e.trigger_second }}s</span>
-                    <span class="text-xs font-semibold uppercase
-                        {% if e.event_type == 'chat' %}text-blue-400
-                        {% elif e.event_type == 'cta_popup' %}text-yellow-400
-                        {% else %}text-purple-400{% endif %}">{{ e.event_type }}</span>
-                    <span class="text-sm text-gray-300">{{ e.payload[:80] }}{% if e.payload|length > 80 %}...{% endif %}</span>
-                </div>
-                <form method="POST" action="{{ url_for('admin.timeline_delete', event_id=e.id) }}" class="inline">
-                    <button type="submit" class="text-red-400 hover:text-red-300 text-sm" onclick="return confirm('Excluir?')">Excluir</button>
-                </form>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <p class="text-gray-500 text-center">Nenhum evento cadastrado.</p>
-        {% endif %}
-    </div>
-    {% endif %}
 </div>
 
 <script>

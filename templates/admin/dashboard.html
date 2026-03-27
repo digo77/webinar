@@ -114,9 +114,15 @@
                            class="font-semibold hover:text-blue-400 transition">{{ w.name or 'Sem nome' }}</a>
                         <span class="text-xs text-gray-500">{{ w.client_name }}</span>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-3">
                         <a href="{{ url_for('admin.webinar_detail', webinar_id=w.id) }}"
                            class="text-blue-400 hover:text-blue-300 text-sm">Editar</a>
+                        <a href="{{ url_for('admin.timeline_view', webinar_id=w.id) }}"
+                           class="text-purple-400 hover:text-purple-300 text-sm">Timeline</a>
+                        <a href="{{ url_for('admin.ai_timeline', webinar_id=w.id) }}"
+                           class="text-cyan-400 hover:text-cyan-300 text-sm">IA</a>
+                        <a href="{{ url_for('admin.test_token', webinar_id=w.id) }}" target="_blank"
+                           class="text-green-400 hover:text-green-300 text-sm">Testar Sala</a>
                         <form method="POST" action="{{ url_for('admin.webinar_delete', webinar_id=w.id) }}" class="inline">
                             <button type="submit" class="text-red-400 hover:text-red-300 text-sm"
                                     onclick="return confirm('Excluir webinario e todos os dados?')">Excluir</button>

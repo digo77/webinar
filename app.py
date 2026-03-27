@@ -17,6 +17,7 @@ def migrate_db(app):
             'start_minute': 'INTEGER DEFAULT 0',
             'client_name': 'TEXT',
             'webhook_token': 'TEXT',
+            'test_date': 'TEXT',
         }
         for col, typedef in wc_new.items():
             if col not in wc_cols:

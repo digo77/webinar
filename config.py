@@ -22,3 +22,7 @@ class Config:
 
     # Admin password
     ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
+
+    # AI APIs
+    OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+    ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')

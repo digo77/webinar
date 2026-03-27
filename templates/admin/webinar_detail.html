@@ -9,7 +9,11 @@
             <h1 class="text-2xl font-bold mt-1">{{ webinar.name or 'Sem nome' }}</h1>
             <p class="text-gray-400 text-sm">Cliente: {{ webinar.client_name or '-' }}</p>
         </div>
-        <div class="flex gap-3">
+        <div class="flex gap-3 flex-wrap">
+            <a href="{{ url_for('admin.timeline_view', webinar_id=webinar.id) }}"
+               class="bg-purple-700 hover:bg-purple-600 px-4 py-2 rounded-lg text-sm transition">Timeline Visual</a>
+            <a href="{{ url_for('admin.ai_timeline', webinar_id=webinar.id) }}"
+               class="bg-cyan-700 hover:bg-cyan-600 px-4 py-2 rounded-lg text-sm transition">IA Timeline</a>
             <a href="{{ url_for('admin.test_token', webinar_id=webinar.id) }}" target="_blank"
                class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-sm transition">Testar Sala</a>
             <a href="{{ url_for('admin.logout') }}" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition">Sair</a>
@@ -101,6 +105,16 @@
                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
                 </div>
             </div>
+            <!-- Data de Teste -->
+            <div class="mb-4">
+                <label class="text-sm text-gray-400">
+                    Data de Teste
+                    <span class="text-gray-600 ml-1">(usado no "Testar Sala" — deixe em branco para usar agora - 20min)</span>
+                </label>
+                <input type="datetime-local" name="test_date"
+                       value="{{ webinar.test_date or '' }}"
+                       class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+            </div>
             <div class="flex items-center gap-4">
                 <label class="flex items-center gap-2 text-sm text-gray-400">
                     <input type="checkbox" name="is_active" value="1" {% if webinar.is_active %}checked{% endif %}
@@ -177,11 +191,16 @@
             </div>
 
             <!-- Campos Poll -->
-            <div id="fields-poll" class="hidden">
+            <div id="fields-poll" class="grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
                 <div>
-                    <label class="text-sm text-gray-400">Payload JSON</label>
-                    <textarea name="payload" rows="3"
-                              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500 font-mono text-sm"></textarea>
+                    <label class="text-sm text-gray-400">Pergunta</label>
+                    <input type="text" name="question" placeholder="Você já fez cookies antes?"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-400">Opcoes (separadas por virgula)</label>
+                    <input type="text" name="options" placeholder="Sim,Nao,Algumas vezes"
+                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
                 </div>
             </div>
         </form>

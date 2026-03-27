@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}IA Timeline — {{ webinar.name }}{% endblock %}
+{% block body %}
+<div class="max-w-4xl mx-auto p-6">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <a href="{{ url_for('admin.timeline_view', webinar_id=webinar.id) }}"
+               class="text-gray-400 hover:text-white text-sm">&larr; Voltar à Timeline</a>
+            <h1 class="text-2xl font-bold mt-1">✨ Gerar Timeline com IA</h1>
+            <p class="text-gray-400 text-sm">{{ webinar.name }} &mdash; {{ webinar.client_name }}</p>
+        </div>
+    </div>
+
+    <!-- Formulário de upload -->
+    <div class="bg-gray-900 rounded-xl p-6 mb-6" id="upload-section">
+        <h2 class="text-lg font-semibold mb-1">1. Envie o áudio do webinário</h2>
+        <p class="text-gray-400 text-sm mb-4">MP3, MP4, WAV ou M4A · Máx 25 MB · O Whisper transcreve com timestamps</p>
+
+        <div class="space-y-4">
+            <div>
+                <label class="text-sm text-gray-400">Arquivo de áudio</label>
+                <input type="file" id="audio-file" accept=".mp3,.mp4,.wav,.m4a,.ogg,.webm"
+                       class="block mt-1 text-sm text-gray-300
+                              file:mr-4 file:py-2 file:px-4
+                              file:rounded-lg file:border-0
+                              file:text-sm file:font-semibold
+                              file:bg-blue-600 file:text-white
+                              hover:file:bg-blue-700 cursor-pointer">
+            </div>
+            <div>
+                <label class="text-sm text-gray-400">
+                    Contexto do produto e objetivo
+                    <span class="text-gray-600 ml-1">(ajuda a IA a gerar mensagens relevantes)</span>
+                </label>
+                <textarea id="product-context" rows="3"
+                          placeholder="ex: Cookie Sandwich do Chef Áureo. Este webinário apresenta a receita e faz upsell para o Cookie Academy Plus, curso avançado de confeitaria. Público: confeiteiras e apaixonadas por doces."
+                          class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500 text-sm"></textarea>
+            </div>
+            <button id="btn-generate"
+                    onclick="generateTimeline()"
+                    class="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold px-6 py-2 rounded-lg transition flex items-center gap-2">
+                <span id="btn-icon">✨</span>
+                <span id="btn-text">Gerar Timeline com IA</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Estado de carregamento -->
+    <div id="loading-section" class="hidden bg-gray-900 rounded-xl p-8 text-center mb-6">
+        <div class="inline-block w-10 h-10 border-4 border-cyan-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="text-lg font-semibold text-white">Processando áudio...</p>
+        <p class="text-gray-400 text-sm mt-1" id="loading-status">Transcrevendo com Whisper</p>
+    </div>
+
+    <!-- Mensagem de erro -->
+    <div id="error-section" class="hidden bg-red-900/40 border border-red-700 rounded-xl p-4 mb-6">
+        <p class="text-red-300 font-semibold">Erro ao processar</p>
+        <p class="text-red-400 text-sm mt-1" id="error-message"></p>
+    </div>
+
+    <!-- Resultados / sugestões -->
+    <div id="results-section" class="hidden">
+        <div class="bg-gray-900 rounded-xl p-6 mb-4">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-lg font-semibold">2. Selecione as mensagens para importar</h2>
+                    <p class="text-gray-400 text-sm mt-1" id="results-meta"></p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="selectAll(true)"
+                            class="text-blue-400 hover:text-blue-300 text-sm">Selecionar todas</button>
+                    <button onclick="selectAll(false)"
+                            class="text-gray-400 hover:text-gray-300 text-sm">Desmarcar</button>
+                </div>
+            </div>
+
+            <div id="suggestions-list" class="space-y-2 max-h-[600px] overflow-y-auto pr-1"></div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <button id="btn-import"
+                    onclick="importSelected()"
+                    class="bg-green-600 hover:bg-green-700 text-white font-semibold px-8 py-3 rounded-lg transition">
+                Importar selecionadas
+            </button>
+            <span id="import-status" class="text-gray-400 text-sm"></span>
+        </div>
+    </div>
+
+</div>
+
+<script>
+const WEBINAR_ID = {{ webinar.id }};
+let allSuggestions = [];
+
+async function generateTimeline() {
+    const file = document.getElementById('audio-file').files[0];
+    const context = document.getElementById('product-context').value.trim();
+
+    if (!file) {
+        alert('Selecione um arquivo de áudio primeiro.');
+        return;
+    }
+
+    // UI: loading
+    document.getElementById('upload-section').classList.add('opacity-50', 'pointer-events-none');
+    document.getElementById('loading-section').classList.remove('hidden');
+    document.getElementById('error-section').classList.add('hidden');
+    document.getElementById('results-section').classList.add('hidden');
+    document.getElementById('btn-generate').disabled = true;
+
+    const formData = new FormData();
+    formData.append('audio_file', file);
+    formData.append('product_context', context);
+
+    try {
+        document.getElementById('loading-status').textContent = 'Transcrevendo com Whisper...';
+
+        const resp = await fetch(`/admin/ai-timeline/${WEBINAR_ID}`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        document.getElementById('loading-status').textContent = 'Gerando sugestões com Claude...';
+
+        const data = await resp.json();
+
+        if (!resp.ok || data.error) {
+            throw new Error(data.error || 'Erro desconhecido');
+        }
+
+        allSuggestions = data.suggestions || [];
+        renderSuggestions(allSuggestions, data.segments_count);
+
+    } catch (err) {
+        document.getElementById('error-section').classList.remove('hidden');
+        document.getElementById('error-message').textContent = err.message;
+    } finally {
+        document.getElementById('loading-section').classList.add('hidden');
+        document.getElementById('upload-section').classList.remove('opacity-50', 'pointer-events-none');
+        document.getElementById('btn-generate').disabled = false;
+    }
+}
+
+function fmtTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = String(sec % 60).padStart(2, '0');
+    return `${m}:${s}`;
+}
+
+function renderSuggestions(suggestions, segCount) {
+    document.getElementById('results-section').classList.remove('hidden');
+    document.getElementById('results-meta').textContent =
+        `${suggestions.length} sugestões geradas a partir de ${segCount || '?'} segmentos de transcrição`;
+
+    const list = document.getElementById('suggestions-list');
+    list.innerHTML = '';
+
+    suggestions.forEach((s, i) => {
+        const div = document.createElement('div');
+        div.className = 'flex items-start gap-3 bg-gray-800/40 rounded-lg px-4 py-3 hover:bg-gray-800/70 transition cursor-pointer';
+        div.onclick = () => {
+            const cb = div.querySelector('input[type=checkbox]');
+            cb.checked = !cb.checked;
+            div.classList.toggle('ring-1 ring-cyan-600', cb.checked);
+        };
+        div.innerHTML = `
+            <input type="checkbox" checked class="mt-1 shrink-0 accent-cyan-500" onclick="event.stopPropagation()">
+            <div class="flex items-start gap-3 flex-1 min-w-0">
+                <span class="shrink-0 font-mono text-sm bg-gray-700 text-gray-200 px-2 py-1 rounded w-14 text-center">
+                    ${fmtTime(s.trigger_second)}
+                </span>
+                <div class="flex-1 min-w-0">
+                    <span class="font-semibold text-white">${escHtml(s.author)}</span>
+                    <span class="text-gray-300 ml-2">${escHtml(s.message)}</span>
+                    ${s.reason ? `<p class="text-gray-500 text-xs mt-0.5 italic">${escHtml(s.reason)}</p>` : ''}
+                </div>
+            </div>`;
+        div.classList.add('ring-1', 'ring-cyan-600');
+        list.appendChild(div);
+    });
+}
+
+function selectAll(state) {
+    document.querySelectorAll('#suggestions-list input[type=checkbox]').forEach(cb => {
+        cb.checked = state;
+        cb.closest('.flex').classList.toggle('ring-1', state);
+        cb.closest('.flex').classList.toggle('ring-cyan-600', state);
+    });
+}
+
+async function importSelected() {
+    const checkboxes = document.querySelectorAll('#suggestions-list input[type=checkbox]');
+    const selected = [];
+    checkboxes.forEach((cb, i) => {
+        if (cb.checked && allSuggestions[i]) selected.push(allSuggestions[i]);
+    });
+
+    if (!selected.length) {
+        alert('Selecione pelo menos uma sugestão.');
+        return;
+    }
+
+    document.getElementById('btn-import').disabled = true;
+    document.getElementById('import-status').textContent = 'Importando...';
+
+    try {
+        const resp = await fetch(`/admin/ai-timeline/${WEBINAR_ID}/import`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({suggestions: selected}),
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            document.getElementById('import-status').textContent =
+                `✅ ${data.created} eventos criados!`;
+            setTimeout(() => {
+                window.location.href = `/admin/timeline/${WEBINAR_ID}`;
+            }, 1200);
+        } else {
+            throw new Error(data.error || 'Falha na importação');
+        }
+    } catch (err) {
+        document.getElementById('import-status').textContent = `❌ ${err.message}`;
+        document.getElementById('btn-import').disabled = false;
+    }
+}
+
+function escHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+</script>
+{% endblock %}

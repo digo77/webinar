@@ -1,13 +1,24 @@
 import json
+import os
 import secrets
+import tempfile
+from datetime import datetime, timedelta
 from functools import wraps
-from flask import Blueprint, request, render_template, redirect, url_for, session, jsonify, current_app
-from models import db, Registrant, WebinarConfig, TimelineEvent
+
+import pytz
+from flask import (Blueprint, current_app, jsonify, redirect,
+                   render_template, request, session, url_for)
+
+from models import Registrant, TimelineEvent, WebinarConfig, db
+from services.scheduler import BRT, DAY_NAMES
 from services.token_service import generate_token
-from services.scheduler import DAY_NAMES
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
+
+# ---------------------------------------------------------------------------
+# Auth helper
+# ---------------------------------------------------------------------------
 
 def login_required(f):
     @wraps(f)
@@ -17,6 +28,10 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
+
+# ---------------------------------------------------------------------------
+# Login / Logout
+# ---------------------------------------------------------------------------
 
 @admin_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -35,7 +50,9 @@ def logout():
     return redirect(url_for('admin.login'))
 
 
-# --- Dashboard: lista todos os webinarios ---
+# ---------------------------------------------------------------------------
+# Dashboard
+# ---------------------------------------------------------------------------
 
 @admin_bp.route('/')
 @admin_bp.route('/dashboard')
@@ -43,12 +60,10 @@ def logout():
 def dashboard():
     webinars = WebinarConfig.query.order_by(WebinarConfig.id.desc()).all()
 
-    # Stats globais
     total_reg = Registrant.query.count()
     total_attended = Registrant.query.filter_by(attended=True).count()
     total_cta = Registrant.query.filter_by(clicked_cta=True).count()
 
-    # Stats por webinario
     for w in webinars:
         regs = Registrant.query.filter_by(webinar_id=w.id).all()
         w.stats = {
@@ -59,14 +74,15 @@ def dashboard():
         w.day_name = DAY_NAMES[w.day_of_week] if w.day_of_week is not None else 'Terca'
 
     stats = {'total': total_reg, 'attended': total_attended, 'clicked_cta': total_cta}
-
     return render_template('admin/dashboard.html',
                            webinars=webinars,
                            stats=stats,
                            day_names=DAY_NAMES)
 
 
-# --- CRUD Webinario ---
+# ---------------------------------------------------------------------------
+# CRUD Webinario
+# ---------------------------------------------------------------------------
 
 @admin_bp.route('/webinar/new', methods=['POST'])
 @login_required
@@ -94,9 +110,9 @@ def webinar_create():
 @login_required
 def webinar_detail(webinar_id):
     webinar = WebinarConfig.query.get_or_404(webinar_id)
-    registrants = Registrant.query.filter_by(webinar_id=webinar_id)\
+    registrants = Registrant.query.filter_by(webinar_id=webinar_id) \
         .order_by(Registrant.created_at.desc()).all()
-    events = TimelineEvent.query.filter_by(webinar_id=webinar_id)\
+    events = TimelineEvent.query.filter_by(webinar_id=webinar_id) \
         .order_by(TimelineEvent.trigger_second).all()
 
     stats = {
@@ -128,6 +144,11 @@ def webinar_edit(webinar_id):
     webinar.attendee_count_base = int(request.form.get('attendee_count_base', webinar.attendee_count_base or 47))
     webinar.upsell_url = request.form.get('upsell_url', webinar.upsell_url)
     webinar.upsell_cta_text = request.form.get('upsell_cta_text', webinar.upsell_cta_text)
+
+    # Test date (datetime-local, ex: "2026-03-27T20:00")
+    test_date_val = request.form.get('test_date', '').strip()
+    webinar.test_date = test_date_val if test_date_val else None
+
     db.session.commit()
     return redirect(url_for('admin.webinar_detail', webinar_id=webinar_id))
 
@@ -136,7 +157,6 @@ def webinar_edit(webinar_id):
 @login_required
 def webinar_delete(webinar_id):
     webinar = WebinarConfig.query.get_or_404(webinar_id)
-    # Remove eventos e registrants associados
     TimelineEvent.query.filter_by(webinar_id=webinar_id).delete()
     Registrant.query.filter_by(webinar_id=webinar_id).delete()
     db.session.delete(webinar)
@@ -144,7 +164,9 @@ def webinar_delete(webinar_id):
     return redirect(url_for('admin.dashboard'))
 
 
-# --- Timeline CRUD (por webinario) ---
+# ---------------------------------------------------------------------------
+# Timeline CRUD — via webinar_detail
+# ---------------------------------------------------------------------------
 
 @admin_bp.route('/webinar/<int:webinar_id>/timeline/add', methods=['POST'])
 @login_required
@@ -165,6 +187,11 @@ def timeline_add(webinar_id):
             'countdown_minutes': int(request.form.get('countdown_minutes', 15)),
             'url': request.form.get('url', ''),
         })
+    elif event_type == 'poll':
+        question = request.form.get('question', '')
+        options_raw = request.form.get('options', '')
+        options = [o.strip() for o in options_raw.split(',') if o.strip()]
+        payload = json.dumps({'question': question, 'options': options})
     else:
         payload = request.form.get('payload', '{}')
 
@@ -176,6 +203,11 @@ def timeline_add(webinar_id):
     )
     db.session.add(event)
     db.session.commit()
+
+    # Redireciona de volta para onde o form veio
+    next_url = request.form.get('next', '')
+    if next_url == 'timeline':
+        return redirect(url_for('admin.timeline_view', webinar_id=webinar_id))
     return redirect(url_for('admin.webinar_detail', webinar_id=webinar_id))
 
 
@@ -186,37 +218,204 @@ def timeline_delete(event_id):
     webinar_id = event.webinar_id
     db.session.delete(event)
     db.session.commit()
+    next_url = request.form.get('next', '')
+    if next_url == 'timeline':
+        return redirect(url_for('admin.timeline_view', webinar_id=webinar_id))
     return redirect(url_for('admin.webinar_detail', webinar_id=webinar_id))
 
 
-# --- Testar Sala ---
+# ---------------------------------------------------------------------------
+# Timeline visual (Feature 2)
+# ---------------------------------------------------------------------------
+
+@admin_bp.route('/timeline/<int:webinar_id>', methods=['GET', 'POST'])
+@login_required
+def timeline_view(webinar_id):
+    webinar = WebinarConfig.query.get_or_404(webinar_id)
+
+    if request.method == 'POST':
+        # Reutiliza lógica de timeline_add, porém redireciona de volta aqui
+        event_type = request.form.get('event_type', 'chat')
+        trigger_second = int(request.form.get('trigger_second', 0))
+
+        if event_type == 'chat':
+            payload = json.dumps({
+                'author': request.form.get('author', ''),
+                'message': request.form.get('message', ''),
+            })
+        elif event_type == 'cta_popup':
+            payload = json.dumps({
+                'title': request.form.get('title', ''),
+                'countdown_minutes': int(request.form.get('countdown_minutes', 15)),
+                'url': request.form.get('url', ''),
+            })
+        elif event_type == 'poll':
+            question = request.form.get('question', '')
+            options_raw = request.form.get('options', '')
+            options = [o.strip() for o in options_raw.split(',') if o.strip()]
+            payload = json.dumps({'question': question, 'options': options})
+        else:
+            payload = request.form.get('payload', '{}')
+
+        event = TimelineEvent(
+            webinar_id=webinar_id,
+            trigger_second=trigger_second,
+            event_type=event_type,
+            payload=payload,
+        )
+        db.session.add(event)
+        db.session.commit()
+        return redirect(url_for('admin.timeline_view', webinar_id=webinar_id))
+
+    # GET: prepara eventos com payload parseado e tempo formatado
+    events_raw = TimelineEvent.query.filter_by(webinar_id=webinar_id) \
+        .order_by(TimelineEvent.trigger_second).all()
+
+    events = []
+    for e in events_raw:
+        try:
+            payload_data = json.loads(e.payload) if e.payload else {}
+        except (json.JSONDecodeError, TypeError):
+            payload_data = {}
+        events.append({
+            'id': e.id,
+            'trigger_second': e.trigger_second,
+            'time_fmt': f"{e.trigger_second // 60}:{e.trigger_second % 60:02d}",
+            'event_type': e.event_type,
+            'payload': payload_data,
+        })
+
+    return render_template('admin/timeline.html', webinar=webinar, events=events)
+
+
+@admin_bp.route('/timeline/<int:webinar_id>/delete/<int:event_id>', methods=['POST'])
+@login_required
+def timeline_delete_from_view(webinar_id, event_id):
+    event = TimelineEvent.query.get_or_404(event_id)
+    db.session.delete(event)
+    db.session.commit()
+    return redirect(url_for('admin.timeline_view', webinar_id=webinar_id))
+
+
+# ---------------------------------------------------------------------------
+# Testar Sala (Feature 1)
+# ---------------------------------------------------------------------------
 
 @admin_bp.route('/webinar/<int:webinar_id>/test-token')
 @login_required
 def test_token(webinar_id):
-    """Gera um token de teste para visualizar a sala do webinario."""
+    """Gera token de teste. Usa test_date do config ou agora - 20min."""
     webinar = WebinarConfig.query.get_or_404(webinar_id)
 
-    # Busca ou cria registrant de teste
+    # Determina data de teste
+    if webinar.test_date:
+        try:
+            test_dt = datetime.fromisoformat(webinar.test_date)
+            if test_dt.tzinfo is None:
+                test_dt = BRT.localize(test_dt)
+        except (ValueError, AttributeError):
+            test_dt = datetime.now(BRT) - timedelta(minutes=20)
+    else:
+        test_dt = datetime.now(BRT) - timedelta(minutes=20)
+
     test_email = f"teste-admin-{webinar_id}@autowebinar.local"
     registrant = Registrant.query.filter_by(email=test_email, webinar_id=webinar_id).first()
+
+    # Armazena como naive (BRT local sem tzinfo, compatível com is_webinar_open)
+    naive_dt = test_dt.replace(tzinfo=None)
+
     if not registrant:
-        from services.scheduler import get_next_webinar_date
-        from datetime import datetime
-        # Usa datetime.now para que a sala abra imediatamente
-        import pytz
-        now = datetime.now(pytz.timezone('America/Sao_Paulo'))
         registrant = Registrant(
             name='Admin Teste',
             email=test_email,
             webinar_id=webinar_id,
-            webinar_date=now.replace(minute=0, second=0),
+            webinar_date=naive_dt,
         )
         db.session.add(registrant)
         db.session.flush()
         token = generate_token(registrant.id, test_email)
         registrant.token = token
         db.session.commit()
+    else:
+        # Sempre atualiza webinar_date para a data de teste atual
+        registrant.webinar_date = naive_dt
+        db.session.commit()
 
     sala_url = url_for('sala.sala', token=registrant.token, _external=True)
     return redirect(sala_url)
+
+
+# ---------------------------------------------------------------------------
+# Gerador de Timeline com IA (Feature 3)
+# ---------------------------------------------------------------------------
+
+@admin_bp.route('/ai-timeline/<int:webinar_id>', methods=['GET', 'POST'])
+@login_required
+def ai_timeline(webinar_id):
+    webinar = WebinarConfig.query.get_or_404(webinar_id)
+
+    if request.method == 'POST':
+        audio_file = request.files.get('audio_file')
+        product_context = request.form.get('product_context', '').strip()
+
+        if not audio_file or not audio_file.filename:
+            return jsonify({'error': 'Nenhum arquivo de áudio enviado.'}), 400
+
+        # Salva em arquivo temporário
+        _, ext = os.path.splitext(audio_file.filename)
+        tmp_fd, tmp_path = tempfile.mkstemp(suffix=ext or '.mp3')
+        try:
+            os.close(tmp_fd)
+            audio_file.save(tmp_path)
+
+            from services.ai_timeline import suggest_chat_events, transcribe_audio
+
+            segments = transcribe_audio(tmp_path)
+            suggestions = suggest_chat_events(segments, product_context)
+
+            return jsonify({
+                'ok': True,
+                'segments_count': len(segments),
+                'suggestions': suggestions,
+            })
+        except Exception as exc:
+            current_app.logger.exception('Erro no ai-timeline')
+            return jsonify({'error': str(exc)}), 500
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+    # GET
+    return render_template('admin/ai_timeline.html', webinar=webinar)
+
+
+@admin_bp.route('/ai-timeline/<int:webinar_id>/import', methods=['POST'])
+@login_required
+def ai_timeline_import(webinar_id):
+    """Recebe sugestões selecionadas e cria TimelineEvents."""
+    WebinarConfig.query.get_or_404(webinar_id)
+    data = request.get_json(silent=True) or {}
+    suggestions = data.get('suggestions', [])
+
+    created = 0
+    for s in suggestions:
+        try:
+            payload = json.dumps({
+                'author': s.get('author', 'Participante'),
+                'message': s.get('message', ''),
+            })
+            event = TimelineEvent(
+                webinar_id=webinar_id,
+                trigger_second=int(s.get('trigger_second', 0)),
+                event_type='chat',
+                payload=payload,
+            )
+            db.session.add(event)
+            created += 1
+        except Exception:
+            pass
+
+    db.session.commit()
+    return jsonify({'ok': True, 'created': created})
