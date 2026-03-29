@@ -17,6 +17,11 @@ def register():
     if not webinar:
         return render_template('registrar.html', error='Webinário não encontrado.', webinar=None), 404
 
+    # UTM params — mantidos tanto no GET quanto no POST (request.url preserva query string)
+    utm_source = request.args.get('utm_source', '').strip() or None
+    utm_medium = request.args.get('utm_medium', '').strip() or None
+    utm_campaign = request.args.get('utm_campaign', '').strip() or None
+
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         phone_country_code = request.form.get('phone_country_code', '+55').strip() or '+55'
@@ -59,6 +64,9 @@ def register():
                 phone_number=phone_number or None,
                 webinar_id=webinar.id,
                 webinar_date=naive_dt,
+                utm_source=utm_source,
+                utm_medium=utm_medium,
+                utm_campaign=utm_campaign,
             )
             db.session.add(registrant)
             db.session.commit()
@@ -70,6 +78,12 @@ def register():
             if phone_number and registrant.phone_number != phone_number:
                 registrant.phone_number = phone_number
                 registrant.phone_country_code = phone_country_code
+                changed = True
+            # Atualiza UTMs se ainda não tiver
+            if utm_source and not registrant.utm_source:
+                registrant.utm_source = utm_source
+                registrant.utm_medium = utm_medium
+                registrant.utm_campaign = utm_campaign
                 changed = True
             if changed:
                 db.session.commit()

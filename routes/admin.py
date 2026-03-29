@@ -101,6 +101,9 @@ def webinar_create():
         attendee_count_base=int(request.form.get('attendee_count_base', 47)),
         upsell_url=request.form.get('upsell_url', ''),
         upsell_cta_text=request.form.get('upsell_cta_text', ''),
+        pitch_second=int(request.form.get('pitch_second', 0) or 0),
+        offer_original_price=request.form.get('offer_original_price', ''),
+        offer_price=request.form.get('offer_price', ''),
     )
     db.session.add(webinar)
     db.session.commit()
@@ -465,6 +468,101 @@ def support_answer(webinar_id, msg_id):
     msg.answered = True
     db.session.commit()
     return redirect(url_for('admin.support_messages', webinar_id=webinar_id))
+
+
+@admin_bp.route('/webinar/<int:webinar_id>/export-csv')
+@login_required
+def export_csv(webinar_id):
+    """Exporta registrados do webinário como CSV."""
+    import csv
+    import io
+    from datetime import date
+    from flask import make_response
+    webinar = WebinarConfig.query.get_or_404(webinar_id)
+    registrants = Registrant.query.filter_by(webinar_id=webinar_id) \
+        .order_by(Registrant.created_at.desc()).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Nome', 'Email', 'Telefone', 'Data Webinário',
+                     'Assistiu', 'Tempo (min)', 'Clicou CTA',
+                     'UTM Source', 'UTM Medium', 'UTM Campaign', 'Criado em'])
+    for r in registrants:
+        phone = ''
+        if r.phone_number:
+            phone = (r.phone_country_code or '') + ' ' + r.phone_number
+        watched = 'Sim' if (r.watch_time_seconds or 0) > 30 else 'Não'
+        writer.writerow([
+            r.name or '',
+            r.email or '',
+            phone.strip(),
+            r.webinar_date.strftime('%d/%m/%Y %H:%M') if r.webinar_date else '',
+            watched,
+            round((r.watch_time_seconds or 0) / 60, 1),
+            'Sim' if r.clicked_cta else 'Não',
+            r.utm_source or '',
+            r.utm_medium or '',
+            r.utm_campaign or '',
+            r.created_at.strftime('%d/%m/%Y %H:%M') if r.created_at else '',
+        ])
+
+    output.seek(0)
+    slug = webinar.slug or str(webinar_id)
+    filename = f"registrados-{slug}-{date.today().isoformat()}.csv"
+    response = make_response('\ufeff' + output.getvalue())  # BOM para Excel
+    response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+@admin_bp.route('/timeline/<int:webinar_id>/event/<int:event_id>')
+@login_required
+def timeline_event_get(webinar_id, event_id):
+    """Retorna dados de um evento para edição (JSON)."""
+    event = TimelineEvent.query.get_or_404(event_id)
+    try:
+        payload = json.loads(event.payload) if event.payload else {}
+    except (json.JSONDecodeError, TypeError):
+        payload = {}
+    return jsonify({
+        'id': event.id,
+        'trigger_second': event.trigger_second,
+        'event_type': event.event_type,
+        'payload': payload,
+    })
+
+
+@admin_bp.route('/timeline/<int:webinar_id>/event/<int:event_id>/edit', methods=['POST'])
+@login_required
+def timeline_event_edit(webinar_id, event_id):
+    """Atualiza um evento existente na timeline."""
+    event = TimelineEvent.query.get_or_404(event_id)
+    event.trigger_second = int(request.form.get('trigger_second', event.trigger_second))
+    event_type = request.form.get('event_type', event.event_type)
+    event.event_type = event_type
+
+    if event_type == 'chat':
+        event.payload = json.dumps({
+            'author': request.form.get('author', ''),
+            'message': request.form.get('message', ''),
+        })
+    elif event_type == 'cta_popup':
+        event.payload = json.dumps({
+            'title': request.form.get('title', ''),
+            'countdown_minutes': int(request.form.get('countdown_minutes', 15) or 15),
+            'url': request.form.get('url', ''),
+        })
+    elif event_type == 'poll':
+        options = [o.strip() for o in request.form.get('options', '').split(',') if o.strip()]
+        event.payload = json.dumps({
+            'question': request.form.get('question', ''),
+            'options': options,
+        })
+    else:
+        event.payload = json.dumps({})
+
+    db.session.commit()
+    return redirect(url_for('admin.timeline_view', webinar_id=webinar_id))
 
 
 @admin_bp.route('/ai-timeline/<int:webinar_id>/import', methods=['POST'])

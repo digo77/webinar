@@ -44,6 +44,9 @@ def migrate_db(app):
             'webinar_id': 'INTEGER',
             'phone_country_code': "TEXT DEFAULT '+55'",
             'phone_number': 'TEXT',
+            'utm_source': 'TEXT',
+            'utm_medium': 'TEXT',
+            'utm_campaign': 'TEXT',
         }
         for col, typedef in r_new.items():
             if col not in r_cols:

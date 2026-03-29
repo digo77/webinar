@@ -1,160 +1,232 @@
 {% extends "base.html" %}
-{% block title %}Admin - Dashboard{% endblock %}
+{% block title %}Admin — Dashboard{% endblock %}
+
+{% block head %}
+<style>
+    .adm-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 12px rgba(0,0,0,.05); }
+    .adm-label { display: block; font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); margin-bottom: 6px; }
+    .adm-input {
+        width: 100%; background: var(--bg-secondary); border: 1.5px solid var(--border);
+        border-radius: 8px; padding: 9px 12px; color: var(--text-primary);
+        font-size: 13px; font-family: 'Lato', sans-serif; outline: none; transition: border-color .15s;
+    }
+    .adm-input:focus { border-color: var(--accent-gold); }
+    .adm-input::placeholder { color: var(--text-muted); }
+    .adm-select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23aaa898' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; cursor: pointer;
+    }
+    .adm-btn { border: none; border-radius: 8px; padding: 9px 20px; font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity .15s; }
+    .adm-btn-gold { background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light)); color: #0a0a0f; }
+    .adm-btn-gold:hover { opacity: .88; }
+    .stat-box { background: var(--bg-secondary); border-radius: 10px; padding: 16px 20px; }
+    .wbr-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; margin-bottom: 8px; transition: box-shadow .15s; }
+    .wbr-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 768px) { .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; } }
+    .nav-tag { font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 6px; text-decoration: none; transition: opacity .15s; }
+    .nav-tag:hover { opacity: .8; }
+</style>
+{% endblock %}
+
 {% block body %}
-<div class="max-w-6xl mx-auto p-6">
+<div style="max-width:1100px;margin:0 auto;padding:24px 16px">
+
     <!-- Header -->
-    <div class="flex items-center justify-between mb-8">
-        <h1 class="text-2xl font-bold">AutoWebinar Admin</h1>
-        <a href="{{ url_for('admin.logout') }}" class="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-lg text-sm transition">Sair</a>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+        <div>
+            <h1 style="font-family:'Montserrat',sans-serif;font-size:22px;font-weight:800;color:var(--text-primary);margin-bottom:2px">AutoWebinar Admin</h1>
+            <p style="font-family:'Lato',sans-serif;font-size:13px;color:var(--text-muted)">Painel de controle</p>
+        </div>
+        <a href="{{ url_for('admin.logout') }}"
+           style="background:var(--bg-secondary);border:1px solid var(--border);color:var(--text-secondary);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;padding:8px 16px;border-radius:8px;text-decoration:none">
+            Sair
+        </a>
     </div>
 
     <!-- Stats Globais -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div class="bg-gray-900 rounded-xl p-6">
-            <p class="text-gray-400 text-sm mb-1">Total registrados</p>
-            <p class="text-3xl font-bold">{{ stats.total }}</p>
+    <div class="grid-3" style="margin-bottom:20px">
+        <div class="stat-box">
+            <p style="font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:6px">Total registrados</p>
+            <p style="font-family:'Montserrat',sans-serif;font-size:30px;font-weight:800;color:var(--text-primary);line-height:1">{{ stats.total }}</p>
         </div>
-        <div class="bg-gray-900 rounded-xl p-6">
-            <p class="text-gray-400 text-sm mb-1">Assistiram</p>
-            <p class="text-3xl font-bold text-green-400">{{ stats.attended }}</p>
+        <div class="stat-box">
+            <p style="font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:6px">Assistiram</p>
+            <p style="font-family:'Montserrat',sans-serif;font-size:30px;font-weight:800;color:var(--success);line-height:1">{{ stats.attended }}</p>
         </div>
-        <div class="bg-gray-900 rounded-xl p-6">
-            <p class="text-gray-400 text-sm mb-1">Clicaram no CTA</p>
-            <p class="text-3xl font-bold text-yellow-400">{{ stats.clicked_cta }}</p>
+        <div class="stat-box">
+            <p style="font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:6px">Clicaram no CTA</p>
+            <p style="font-family:'Montserrat',sans-serif;font-size:30px;font-weight:800;color:var(--accent-gold);line-height:1">{{ stats.clicked_cta }}</p>
         </div>
     </div>
 
-    <!-- Criar Novo Webinario -->
-    <div class="bg-gray-900 rounded-xl p-6 mb-8">
-        <h2 class="text-lg font-semibold mb-4">Criar Novo Webinario</h2>
+    <!-- Criar Novo Webinário -->
+    <div class="adm-card">
+        <h2 style="font-family:'Montserrat',sans-serif;font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:16px">Criar Novo Webinário</h2>
         <form method="POST" action="{{ url_for('admin.webinar_create') }}">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+
+            <!-- Linha 1: Identificação -->
+            <div class="grid-4" style="margin-bottom:12px">
                 <div>
-                    <label class="text-sm text-gray-400">Nome do Webinario</label>
-                    <input type="text" name="name" required placeholder="Ex: Cookie Sandwich Upsell"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Nome do webinário *</label>
+                    <input type="text" name="name" required placeholder="Ex: Aula Cookie Sandwich"
+                           class="adm-input">
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">Cliente</label>
-                    <input type="text" name="client_name" required placeholder="Ex: Chef Aureo"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Cliente *</label>
+                    <input type="text" name="client_name" required placeholder="Ex: Chef Áureo"
+                           class="adm-input">
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">
-                        Slug
-                        <span class="text-gray-600">(URL)</span>
-                    </label>
-                    <input type="text" name="slug" placeholder="ex: cookie-sandwich"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-yellow-500 font-mono text-sm">
+                    <label class="adm-label">Slug <span style="font-weight:400;color:var(--text-muted)">(URL)</span></label>
+                    <input type="text" name="slug" placeholder="cookie-sandwich"
+                           class="adm-input" style="font-family:monospace">
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">VTurb Video ID</label>
-                    <input type="text" name="vturb_video_id" placeholder="vid-xxx"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">VTurb Video ID</label>
+                    <input type="text" name="vturb_video_id" placeholder="vid-abc123"
+                           class="adm-input">
                 </div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+
+            <!-- Linha 2: Horário -->
+            <div class="grid-4" style="margin-bottom:12px">
                 <div>
-                    <label class="text-sm text-gray-400">Dia da semana</label>
-                    <select name="day_of_week"
-                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Dia da semana</label>
+                    <select name="day_of_week" class="adm-input adm-select">
                         {% for i in range(7) %}
                         <option value="{{ i }}" {% if i == 1 %}selected{% endif %}>{{ day_names[i] }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">Hora inicio</label>
-                    <input type="number" name="start_hour" value="19" min="0" max="23"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Hora início</label>
+                    <input type="number" name="start_hour" value="19" min="0" max="23" class="adm-input">
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">Minuto inicio</label>
-                    <input type="number" name="start_minute" value="0" min="0" max="59"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Minuto início</label>
+                    <input type="number" name="start_minute" value="0" min="0" max="59" class="adm-input">
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">Base viewers</label>
-                    <input type="number" name="attendee_count_base" value="47"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Base viewers</label>
+                    <input type="number" name="attendee_count_base" value="47" class="adm-input">
                 </div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+
+            <!-- Linha 3: Upsell -->
+            <div class="grid-3" style="margin-bottom:12px">
                 <div>
-                    <label class="text-sm text-gray-400">URL do Upsell</label>
-                    <input type="text" name="upsell_url" placeholder="https://..."
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">URL do Upsell</label>
+                    <input type="text" name="upsell_url" placeholder="https://..." class="adm-input">
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">Texto do botao CTA</label>
-                    <input type="text" name="upsell_cta_text" placeholder="Quero aproveitar!"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Texto do botão CTA</label>
+                    <input type="text" name="upsell_cta_text" placeholder="Quero aproveitar!" class="adm-input">
+                </div>
+                <div>
+                    <label class="adm-label">Segundo do pitch <span style="font-weight:400;color:var(--text-muted)">(ex: 1800 = 30min)</span></label>
+                    <input type="number" name="pitch_second" value="0" min="0" class="adm-input">
                 </div>
             </div>
-            <div class="flex items-center gap-4">
-                <label class="flex items-center gap-2 text-sm text-gray-400">
-                    <input type="checkbox" name="is_active" value="1" checked
-                           class="rounded bg-gray-800 border-gray-700">
-                    Ativo
-                </label>
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition">
-                    Criar Webinario
-                </button>
+
+            <!-- Linha 4: Preços -->
+            <div class="grid-3" style="margin-bottom:16px">
+                <div>
+                    <label class="adm-label">Preço original <span style="font-weight:400;color:var(--text-muted)">(riscado)</span></label>
+                    <input type="text" name="offer_original_price" placeholder="R$ 997,00" class="adm-input">
+                </div>
+                <div>
+                    <label class="adm-label">Preço da oferta</label>
+                    <input type="text" name="offer_price" placeholder="12x de R$ 99,70" class="adm-input">
+                </div>
+                <div style="display:flex;align-items:flex-end;padding-bottom:2px">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-family:'Lato',sans-serif;font-size:13px;color:var(--text-secondary)">
+                        <input type="checkbox" name="is_active" value="1" checked
+                               style="width:16px;height:16px;accent-color:var(--accent-gold)">
+                        Ativo
+                    </label>
+                </div>
             </div>
+
+            <button type="submit" class="adm-btn adm-btn-gold" style="padding:11px 28px;font-size:14px">
+                Criar Webinário →
+            </button>
         </form>
     </div>
 
-    <!-- Lista de Webinarios -->
-    <div class="bg-gray-900 rounded-xl p-6">
-        <h2 class="text-lg font-semibold mb-4">Webinarios ({{ webinars|length }})</h2>
+    <!-- Lista de Webinários -->
+    <div class="adm-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <h2 style="font-family:'Montserrat',sans-serif;font-size:14px;font-weight:700;color:var(--text-primary)">Webinários ({{ webinars|length }})</h2>
+        </div>
+
         {% if webinars %}
-        <div class="space-y-3">
+        <div>
             {% for w in webinars %}
-            <div class="bg-gray-800/50 rounded-lg px-5 py-4">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center gap-3">
-                        {% if w.is_active %}
-                        <span class="w-2 h-2 bg-green-400 rounded-full"></span>
-                        {% else %}
-                        <span class="w-2 h-2 bg-gray-600 rounded-full"></span>
-                        {% endif %}
-                        <a href="{{ url_for('admin.webinar_detail', webinar_id=w.id) }}"
-                           class="font-semibold hover:text-blue-400 transition">{{ w.name or 'Sem nome' }}</a>
-                        <span class="text-xs text-gray-500">{{ w.client_name }}</span>
+            <div class="wbr-card">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                    <!-- Identificação -->
+                    <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1">
+                        <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:{{ 'var(--success)' if w.is_active else 'var(--text-muted)' }}"></div>
+                        <div style="min-width:0">
+                            <a href="{{ url_for('admin.webinar_detail', webinar_id=w.id) }}"
+                               style="font-family:'Montserrat',sans-serif;font-size:15px;font-weight:700;color:var(--text-primary);text-decoration:none;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                                {{ w.name or 'Sem nome' }}
+                            </a>
+                            <span style="font-family:'Lato',sans-serif;font-size:12px;color:var(--text-muted)">
+                                {{ w.client_name or '—' }} · {{ w.day_name }} {{ '%02d'|format(w.start_hour or 19) }}:{{ '%02d'|format(w.start_minute or 0) }}
+                            </span>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-3">
+
+                    <!-- Ações -->
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex-shrink:0">
                         <a href="{{ url_for('admin.webinar_detail', webinar_id=w.id) }}"
-                           class="text-blue-400 hover:text-blue-300 text-sm">Editar</a>
+                           class="nav-tag" style="background:rgba(200,130,10,.12);color:var(--accent-gold);border:1px solid rgba(200,130,10,.25)">Editar</a>
                         <a href="{{ url_for('admin.timeline_view', webinar_id=w.id) }}"
-                           class="text-purple-400 hover:text-purple-300 text-sm">Timeline</a>
+                           class="nav-tag" style="background:rgba(168,85,247,.12);color:#9b59b6;border:1px solid rgba(168,85,247,.25)">Timeline</a>
                         <a href="{{ url_for('admin.ai_timeline', webinar_id=w.id) }}"
-                           class="text-cyan-400 hover:text-cyan-300 text-sm">IA</a>
+                           class="nav-tag" style="background:rgba(6,182,212,.1);color:#0891b2;border:1px solid rgba(6,182,212,.2)">IA</a>
                         <a href="{{ url_for('admin.test_token', webinar_id=w.id) }}" target="_blank"
-                           class="text-green-400 hover:text-green-300 text-sm">Testar Sala</a>
-                        <form method="POST" action="{{ url_for('admin.webinar_delete', webinar_id=w.id) }}" class="inline">
-                            <button type="submit" class="text-red-400 hover:text-red-300 text-sm"
-                                    onclick="return confirm('Excluir webinario e todos os dados?')">Excluir</button>
+                           class="nav-tag" style="background:rgba(34,197,94,.12);color:#16a34a;border:1px solid rgba(34,197,94,.25)">▶ Testar</a>
+                        <form method="POST" action="{{ url_for('admin.webinar_delete', webinar_id=w.id) }}" style="display:inline">
+                            <button type="submit" class="nav-tag"
+                                    style="background:rgba(239,68,68,.08);color:#dc2626;border:1px solid rgba(239,68,68,.2);cursor:pointer"
+                                    onclick="return confirm('Excluir webinário e todos os dados?')">Excluir</button>
                         </form>
                     </div>
                 </div>
-                <div class="flex items-center gap-6 text-xs text-gray-400 flex-wrap">
-                    <span>{{ w.day_name }} {{ '%02d'|format(w.start_hour or 19) }}:{{ '%02d'|format(w.start_minute or 0) }}</span>
-                    <span>{{ w.stats.total }} registrados</span>
-                    <span class="text-green-400">{{ w.stats.attended }} assistiram</span>
-                    <span class="text-yellow-400">{{ w.stats.clicked_cta }} CTA</span>
+
+                <!-- Stats + Slug -->
+                <div style="display:flex;align-items:center;gap:16px;margin-top:10px;flex-wrap:wrap">
+                    <span style="font-family:'Lato',sans-serif;font-size:12px;color:var(--text-secondary)">
+                        {{ w.stats.total }} registrados
+                    </span>
+                    <span style="font-family:'Lato',sans-serif;font-size:12px;color:var(--success);font-weight:700">
+                        {{ w.stats.attended }} assistiram
+                    </span>
+                    <span style="font-family:'Lato',sans-serif;font-size:12px;color:var(--accent-gold);font-weight:700">
+                        {{ w.stats.clicked_cta }} CTA
+                    </span>
                     {% if w.slug %}
                     <a href="/registrar?w={{ w.slug }}" target="_blank"
-                       class="text-yellow-400/70 hover:text-yellow-400 font-mono">/registrar?w={{ w.slug }}</a>
+                       style="font-family:monospace;font-size:11px;color:var(--accent-gold);opacity:.7;text-decoration:none">/registrar?w={{ w.slug }}</a>
                     {% else %}
-                    <span class="text-gray-700 italic">sem slug</span>
+                    <span style="font-family:'Lato',sans-serif;font-size:12px;color:var(--text-muted);font-style:italic">sem slug</span>
                     {% endif %}
                 </div>
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <p class="text-gray-500 text-center">Nenhum webinario cadastrado. Crie o primeiro acima.</p>
+        <p style="text-align:center;font-family:'Lato',sans-serif;font-size:13px;color:var(--text-muted);padding:32px 0">
+            Nenhum webinário cadastrado. Crie o primeiro acima.
+        </p>
         {% endif %}
     </div>
+
 </div>
 {% endblock %}

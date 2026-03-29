@@ -19,6 +19,9 @@ class Registrant(db.Model):
     attended = db.Column(db.Boolean, default=False)
     watch_time_seconds = db.Column(db.Integer, default=0)
     clicked_cta = db.Column(db.Boolean, default=False)
+    utm_source = db.Column(db.Text)
+    utm_medium = db.Column(db.Text)
+    utm_campaign = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     webinar = db.relationship('WebinarConfig', backref='registrants')
 

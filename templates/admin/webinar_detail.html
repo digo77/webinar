@@ -61,19 +61,41 @@
     </div>
 
     <!-- ── Stats ───────────────────────────────────────────────────── -->
-    <div class="grid-3" style="margin-bottom:20px">
+    <div class="grid-3" style="margin-bottom:12px">
         <div class="stat-card">
             <p style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Registrados</p>
-            <p style="font-size:28px;font-weight:800">{{ stats.total }}</p>
+            <p style="font-size:28px;font-weight:800;font-family:'Montserrat',sans-serif;color:var(--text-primary)">{{ stats.total }}</p>
         </div>
         <div class="stat-card">
             <p style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Assistiram</p>
-            <p style="font-size:28px;font-weight:800;color:var(--success)">{{ stats.attended }}</p>
+            <p style="font-size:28px;font-weight:800;font-family:'Montserrat',sans-serif;color:var(--success)">{{ stats.attended }}</p>
         </div>
         <div class="stat-card">
             <p style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Clicaram CTA</p>
-            <p style="font-size:28px;font-weight:800;color:var(--accent-gold)">{{ stats.clicked_cta }}</p>
+            <p style="font-size:28px;font-weight:800;font-family:'Montserrat',sans-serif;color:var(--accent-gold)">{{ stats.clicked_cta }}</p>
         </div>
+    </div>
+
+    <!-- ── Funil de conversão ────────────────────────────────────── -->
+    {% set pct_att = ((stats.attended / stats.total * 100)|round|int) if stats.total > 0 else 0 %}
+    {% set pct_cta = ((stats.clicked_cta / stats.total * 100)|round|int) if stats.total > 0 else 0 %}
+    <div class="stat-card" style="margin-bottom:20px;padding:14px 20px">
+        <div style="height:10px;border-radius:5px;background:var(--bg-secondary);overflow:hidden;margin-bottom:10px;position:relative">
+            <!-- Barra registrados (fundo) -->
+            <div style="position:absolute;inset:0;background:var(--border)"></div>
+            <!-- Barra assistiram -->
+            <div style="position:absolute;left:0;top:0;bottom:0;width:{{ pct_att }}%;background:#3b82f6;border-radius:5px;transition:width .5s"></div>
+            <!-- Barra CTA -->
+            <div style="position:absolute;left:0;top:0;bottom:0;width:{{ pct_cta }}%;background:var(--accent-gold);border-radius:5px;transition:width .5s"></div>
+        </div>
+        <p style="font-family:'Lato',sans-serif;font-size:12px;color:var(--text-muted)">
+            <span style="color:#3b82f6;font-weight:700">{{ pct_att }}% assistência</span>
+            &nbsp;·&nbsp;
+            <span style="color:var(--accent-gold);font-weight:700">{{ pct_cta }}% conversão CTA</span>
+            {% if stats.total > 0 %}
+            &nbsp;·&nbsp; <span>{{ stats.total }} registrados no total</span>
+            {% endif %}
+        </p>
     </div>
 
     <!-- ── Links ───────────────────────────────────────────────────── -->
@@ -288,11 +310,23 @@
                     </div>
                     <div>
                         <label class="adm-label">URL imagem de fundo <span style="color:var(--text-muted);font-weight:400">(Modo 2)</span></label>
-                        <input class="adm-input" type="text" name="register_bg_image_url" value="{{ webinar.register_bg_image_url or '' }}" placeholder="https://...fundo.jpg">
+                        <input class="adm-input" type="text" name="register_bg_image_url" id="bg-image-input"
+                               value="{{ webinar.register_bg_image_url or '' }}" placeholder="https://...fundo.jpg"
+                               oninput="previewImage('bg-image-input','bg-image-preview')">
+                        <div id="bg-image-preview" style="margin-top:6px;{% if not webinar.register_bg_image_url %}display:none{% endif %}">
+                            <img src="{{ webinar.register_bg_image_url or '' }}" alt="Preview fundo"
+                                 style="width:120px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">
+                        </div>
                     </div>
                     <div>
                         <label class="adm-label">URL foto do apresentador <span style="color:var(--text-muted);font-weight:400">(Modo 3)</span></label>
-                        <input class="adm-input" type="text" name="register_presenter_photo_url" value="{{ webinar.register_presenter_photo_url or '' }}" placeholder="https://...foto.jpg">
+                        <input class="adm-input" type="text" name="register_presenter_photo_url" id="presenter-photo-input"
+                               value="{{ webinar.register_presenter_photo_url or '' }}" placeholder="https://...foto.jpg"
+                               oninput="previewImage('presenter-photo-input','presenter-photo-preview')">
+                        <div id="presenter-photo-preview" style="margin-top:6px;{% if not webinar.register_presenter_photo_url %}display:none{% endif %}">
+                            <img src="{{ webinar.register_presenter_photo_url or '' }}" alt="Preview foto"
+                                 style="width:80px;height:80px;object-fit:cover;border-radius:50%;border:2px solid var(--accent-gold)">
+                        </div>
                     </div>
                 </div>
                 <div style="margin-bottom:14px">
@@ -420,33 +454,52 @@
     <!-- REGISTRADOS -->
     <!-- ══════════════════════════════════════════════════════════════ -->
     <div class="adm-card">
-        <p class="adm-section-title">Registrados ({{ registrants|length }})</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <p class="adm-section-title" style="margin-bottom:0;border-bottom:none">Registrados ({{ registrants|length }})</p>
+            {% if registrants %}
+            <a href="{{ url_for('admin.export_csv', webinar_id=webinar.id) }}"
+               style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);color:#16a34a;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;padding:6px 14px;border-radius:8px;text-decoration:none">
+                ↓ Exportar CSV
+            </a>
+            {% endif %}
+        </div>
         {% if registrants %}
         <div style="overflow-x:auto">
             <table style="width:100%;border-collapse:collapse;font-size:13px">
                 <thead>
-                    <tr style="color:var(--text-muted);border-bottom:1px solid var(--border)">
-                        <th style="text-align:left;padding:8px 12px 8px 0;font-weight:600">Nome</th>
-                        <th style="text-align:left;padding:8px 12px 8px 0;font-weight:600">Email</th>
-                        <th style="text-align:left;padding:8px 12px 8px 0;font-weight:600">Data</th>
-                        <th style="text-align:center;padding:8px 8px;font-weight:600">Assistiu</th>
-                        <th style="text-align:center;padding:8px 8px;font-weight:600">Tempo</th>
-                        <th style="text-align:center;padding:8px 0;font-weight:600">CTA</th>
+                    <tr style="color:var(--text-muted);border-bottom:1px solid var(--border);font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em">
+                        <th style="text-align:left;padding:8px 12px 8px 0">Nome</th>
+                        <th style="text-align:left;padding:8px 12px 8px 0">Contato</th>
+                        <th style="text-align:left;padding:8px 12px 8px 0">Data</th>
+                        <th style="text-align:center;padding:8px 8px">Assistiu</th>
+                        <th style="text-align:center;padding:8px 8px">Tempo</th>
+                        <th style="text-align:center;padding:8px 8px">CTA</th>
+                        <th style="text-align:left;padding:8px 0">Fonte</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for r in registrants %}
-                    <tr style="border-bottom:1px solid rgba(42,42,58,.5)">
-                        <td style="padding:10px 12px 10px 0;font-weight:500">{{ r.name or '—' }}</td>
-                        <td style="padding:10px 12px 10px 0;color:var(--text-muted)">{{ r.email or '—' }}</td>
+                    {% set watched = r.watch_time_seconds and r.watch_time_seconds > 30 %}
+                    <tr style="border-bottom:1px solid var(--border)">
+                        <td style="padding:10px 12px 10px 0;font-weight:600;color:var(--text-primary)">{{ r.name or '—' }}</td>
+                        <td style="padding:10px 12px 10px 0;font-size:12px">
+                            {% if r.phone_number %}
+                            <span style="color:var(--text-primary);font-family:'Lato',sans-serif">{{ r.phone_country_code or '' }} {{ r.phone_number }}</span><br>
+                            {% endif %}
+                            {% if r.email %}
+                            <span style="color:var(--text-muted)">{{ r.email }}</span>
+                            {% endif %}
+                            {% if not r.phone_number and not r.email %}<span style="color:var(--text-muted)">—</span>{% endif %}
+                        </td>
                         <td style="padding:10px 12px 10px 0;color:var(--text-muted);font-size:12px">{{ r.webinar_date.strftime('%d/%m %H:%M') if r.webinar_date else '—' }}</td>
                         <td style="padding:10px 8px;text-align:center">
-                            {% if r.attended %}<span style="color:var(--success);font-weight:700">✓</span>{% else %}<span style="color:var(--text-muted)">—</span>{% endif %}
+                            {% if watched %}<span style="color:var(--success);font-weight:700">✓</span>{% else %}<span style="color:var(--text-muted)">—</span>{% endif %}
                         </td>
-                        <td style="padding:10px 8px;text-align:center;color:var(--text-muted);font-size:12px">{{ (r.watch_time_seconds / 60)|round(1) }}m</td>
-                        <td style="padding:10px 0;text-align:center">
+                        <td style="padding:10px 8px;text-align:center;color:var(--text-muted);font-size:12px">{{ ((r.watch_time_seconds or 0) / 60)|round(1) }}m</td>
+                        <td style="padding:10px 8px;text-align:center">
                             {% if r.clicked_cta %}<span style="color:var(--accent-gold);font-weight:700">✓</span>{% else %}<span style="color:var(--text-muted)">—</span>{% endif %}
                         </td>
+                        <td style="padding:10px 0;font-size:11px;color:var(--text-muted);font-family:'Lato',sans-serif">{{ r.utm_source or '—' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -469,6 +522,20 @@
 </div>
 
 <script>
+// ── Preview de imagem ────────────────────────────────────────────────────
+function previewImage(inputId, previewId) {
+    const url = document.getElementById(inputId).value.trim();
+    const wrap = document.getElementById(previewId);
+    if (!wrap) return;
+    const img = wrap.querySelector('img');
+    if (url) {
+        if (img) img.src = url;
+        wrap.style.display = '';
+    } else {
+        wrap.style.display = 'none';
+    }
+}
+
 // ── Pitch second display ──────────────────────────────────────────────────
 function updatePitchDisplay(val) {
     const sec = parseInt(val) || 0;

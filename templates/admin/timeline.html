@@ -1,175 +1,300 @@
 {% extends "base.html" %}
 {% block title %}Timeline — {{ webinar.name }}{% endblock %}
+
+{% block head %}
+<style>
+    .adm-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 12px rgba(0,0,0,.05); }
+    .adm-label { display: block; font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); margin-bottom: 6px; }
+    .adm-input {
+        width: 100%; background: var(--bg-secondary); border: 1.5px solid var(--border);
+        border-radius: 8px; padding: 9px 12px; color: var(--text-primary);
+        font-size: 13px; font-family: 'Lato', sans-serif; outline: none; transition: border-color .15s;
+    }
+    .adm-input:focus { border-color: var(--accent-gold); }
+    .adm-input::placeholder { color: var(--text-muted); }
+    .adm-select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23aaa898' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; cursor: pointer;
+    }
+    .adm-btn { border: none; border-radius: 8px; padding: 9px 20px; font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; transition: opacity .15s; }
+    .adm-btn-gold { background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light)); color: #0a0a0f; }
+    .adm-btn-gold:hover { opacity: .88; }
+    .adm-btn-ghost { background: var(--bg-secondary); color: var(--text-secondary); border: 1px solid var(--border); }
+    .adm-btn-ghost:hover { border-color: var(--accent-gold); color: var(--accent-gold); }
+    .adm-btn-danger { background: rgba(239,68,68,.08); color: #dc2626; border: 1px solid rgba(239,68,68,.2); }
+    .adm-btn-danger:hover { background: rgba(239,68,68,.15); }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 768px) { .grid-3, .grid-2 { grid-template-columns: 1fr; } }
+
+    .ev-row {
+        display: flex; align-items: center; justify-content: space-between;
+        background: var(--bg-secondary); border-radius: 8px; padding: 10px 14px;
+        gap: 12px; margin-bottom: 6px; transition: background .1s;
+    }
+    .ev-row:hover { background: var(--border); }
+    .ev-badge { border-radius: 20px; padding: 2px 10px; font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0; }
+</style>
+{% endblock %}
+
 {% block body %}
-<div class="max-w-4xl mx-auto p-6">
+<div style="max-width:900px;margin:0 auto;padding:24px 16px">
 
     <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:24px">
         <div>
             <a href="{{ url_for('admin.webinar_detail', webinar_id=webinar.id) }}"
-               class="text-gray-400 hover:text-white text-sm">&larr; Voltar</a>
-            <h1 class="text-2xl font-bold mt-1">Timeline Visual</h1>
-            <p class="text-gray-400 text-sm">{{ webinar.name }} &mdash; {{ webinar.client_name }}</p>
+               style="font-size:13px;color:var(--text-muted);text-decoration:none">← Voltar</a>
+            <h1 style="font-family:'Montserrat',sans-serif;font-size:20px;font-weight:800;color:var(--text-primary);margin:4px 0 2px">Timeline Visual</h1>
+            <p style="font-family:'Lato',sans-serif;font-size:13px;color:var(--text-muted)">{{ webinar.name }} — {{ webinar.client_name }}</p>
         </div>
-        <div class="flex gap-3">
+        <div style="display:flex;gap:8px">
             <a href="{{ url_for('admin.ai_timeline', webinar_id=webinar.id) }}"
-               class="bg-cyan-700 hover:bg-cyan-600 px-4 py-2 rounded-lg text-sm transition">✨ IA Timeline</a>
+               style="background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.2);color:#0891b2;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;padding:8px 14px;border-radius:8px;text-decoration:none">✨ IA Timeline</a>
             <a href="{{ url_for('admin.test_token', webinar_id=webinar.id) }}" target="_blank"
-               class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-sm transition">Testar Sala</a>
+               style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.2);color:#16a34a;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;padding:8px 14px;border-radius:8px;text-decoration:none">▶ Testar Sala</a>
         </div>
     </div>
 
-    <!-- Preview visual dos eventos existentes -->
-    <div class="bg-gray-900 rounded-xl p-6 mb-6">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold">Eventos ({{ events|length }})</h2>
-            <span class="text-xs text-gray-500">ordenados por segundo do vídeo</span>
+    <!-- Eventos existentes -->
+    <div class="adm-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <h2 style="font-family:'Montserrat',sans-serif;font-size:14px;font-weight:700;color:var(--text-primary)">Eventos ({{ events|length }})</h2>
+            <span style="font-family:'Lato',sans-serif;font-size:11px;color:var(--text-muted)">ordenados por segundo do vídeo</span>
         </div>
 
         {% if events %}
-        <div class="space-y-2">
+        <div>
             {% for e in events %}
-            <div class="flex items-start justify-between bg-gray-800/40 rounded-lg px-4 py-3 hover:bg-gray-800/60 transition">
-                <!-- Lado esquerdo: tempo + badge + conteúdo -->
-                <div class="flex items-start gap-3 flex-1 min-w-0">
-                    <!-- Timestamp formatado -->
-                    <span class="shrink-0 font-mono text-sm bg-gray-700 text-gray-200 px-2 py-1 rounded w-14 text-center">
+            <div class="ev-row">
+                <!-- Lado esquerdo -->
+                <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+                    <!-- Timestamp -->
+                    <span style="font-family:monospace;font-size:12px;background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary);padding:3px 8px;border-radius:6px;flex-shrink:0;min-width:48px;text-align:center">
                         {{ e.time_fmt }}
                     </span>
 
-                    <!-- Badge de tipo -->
-                    <span class="shrink-0 text-xs font-bold uppercase px-2 py-1 rounded mt-0.5
-                        {% if e.event_type == 'chat' %}bg-blue-900/60 text-blue-300
-                        {% elif e.event_type == 'cta_popup' %}bg-yellow-900/60 text-yellow-300
-                        {% else %}bg-purple-900/60 text-purple-300{% endif %}">
-                        {{ e.event_type }}
-                    </span>
+                    <!-- Badge tipo -->
+                    {% if e.event_type == 'chat' %}
+                    <span class="ev-badge" style="background:rgba(59,130,246,.12);color:#2563eb">chat</span>
+                    {% elif e.event_type == 'cta_popup' %}
+                    <span class="ev-badge" style="background:rgba(200,130,10,.12);color:var(--accent-gold)">oferta</span>
+                    {% elif e.event_type == 'purchase_notification' %}
+                    <span class="ev-badge" style="background:rgba(34,197,94,.12);color:#16a34a">compra</span>
+                    {% elif e.event_type == 'end_broadcast' %}
+                    <span class="ev-badge" style="background:rgba(239,68,68,.1);color:#dc2626">encerrar</span>
+                    {% elif e.event_type == 'poll' %}
+                    <span class="ev-badge" style="background:rgba(168,85,247,.12);color:#9b59b6">poll</span>
+                    {% else %}
+                    <span class="ev-badge" style="background:var(--bg-secondary);color:var(--text-muted)">{{ e.event_type }}</span>
+                    {% endif %}
 
-                    <!-- Preview do conteúdo -->
-                    <div class="flex-1 min-w-0">
+                    <!-- Preview legível -->
+                    <div style="flex:1;min-width:0;font-family:'Lato',sans-serif;font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
                         {% if e.event_type == 'chat' %}
-                            <span class="font-semibold text-white">{{ e.payload.author or '?' }}</span>
-                            <span class="text-gray-300 ml-2">{{ e.payload.message or '' }}</span>
+                            💬 <strong style="color:var(--text-primary)">{{ e.payload.author or '?' }}</strong>: {{ e.payload.message or '' }}
                         {% elif e.event_type == 'cta_popup' %}
-                            <span class="font-semibold text-yellow-200">{{ e.payload.title or 'CTA' }}</span>
-                            <span class="text-gray-400 ml-2 text-xs">
-                                {{ e.payload.countdown_minutes or 15 }}min
-                                {% if e.payload.url %} · {{ e.payload.url[:40] }}{% if e.payload.url|length > 40 %}...{% endif %}{% endif %}
-                            </span>
+                            🛒 Oferta abre — countdown: <strong>{{ e.payload.countdown_minutes or 15 }}min</strong>{% if e.payload.title %} · {{ e.payload.title }}{% endif %}
+                        {% elif e.event_type == 'purchase_notification' %}
+                            ⭐ Banner de compra{% if e.payload.names %} ({{ e.payload.names|join(', ')|truncate(40) }}){% endif %}
+                        {% elif e.event_type == 'end_broadcast' %}
+                            🎬 Transmissão encerrada
                         {% elif e.event_type == 'poll' %}
-                            <span class="font-semibold text-purple-200">{{ e.payload.question or 'Enquete' }}</span>
-                            {% if e.payload.options %}
-                            <span class="text-gray-400 ml-2 text-xs">{{ e.payload.options | join(' · ') }}</span>
-                            {% endif %}
+                            📊 Enquete: {{ e.payload.question or '?' }}
                         {% else %}
-                            <span class="text-gray-400 text-sm font-mono">{{ e.payload | string | truncate(80) }}</span>
+                            {{ (e.payload | string)[:60] }}
                         {% endif %}
                     </div>
                 </div>
 
-                <!-- Excluir -->
-                <form method="POST"
-                      action="{{ url_for('admin.timeline_delete_from_view', webinar_id=webinar.id, event_id=e.id) }}"
-                      class="shrink-0 ml-4">
-                    <button type="submit"
-                            class="text-red-500 hover:text-red-300 text-xs px-2 py-1 rounded hover:bg-red-900/30 transition"
-                            onclick="return confirm('Excluir este evento?')">
-                        Excluir
+                <!-- Ações -->
+                <div style="display:flex;gap:6px;flex-shrink:0">
+                    <button class="adm-btn adm-btn-ghost" style="padding:4px 10px;font-size:11px"
+                            onclick="loadEdit({{ e.id }}, '{{ e.event_type }}', {{ e.trigger_second }}, {{ e.payload | tojson | safe }})">
+                        Editar
                     </button>
-                </form>
+                    <form method="POST"
+                          action="{{ url_for('admin.timeline_delete_from_view', webinar_id=webinar.id, event_id=e.id) }}">
+                        <button type="submit" class="adm-btn adm-btn-danger" style="padding:4px 10px;font-size:11px"
+                                onclick="return confirm('Excluir este evento?')">Excluir</button>
+                    </form>
+                </div>
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <p class="text-gray-500 text-center py-6">Nenhum evento ainda. Adicione abaixo.</p>
+        <p style="text-align:center;font-family:'Lato',sans-serif;font-size:13px;color:var(--text-muted);padding:24px 0">Nenhum evento ainda. Adicione abaixo.</p>
         {% endif %}
     </div>
 
-    <!-- Formulário de adição -->
-    <div class="bg-gray-900 rounded-xl p-6">
-        <h2 class="text-lg font-semibold mb-4">Adicionar Evento</h2>
-        <form method="POST" action="{{ url_for('admin.timeline_view', webinar_id=webinar.id) }}">
-            <!-- Linha 1: tipo + segundo + botão -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+    <!-- Formulário de adição / edição -->
+    <div class="adm-card">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+            <h2 style="font-family:'Montserrat',sans-serif;font-size:14px;font-weight:700;color:var(--text-primary)" id="form-title">Adicionar Evento</h2>
+            <span id="editing-badge" style="display:none;background:rgba(200,130,10,.15);color:var(--accent-gold);font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;padding:2px 10px;border-radius:20px;text-transform:uppercase">Editando</span>
+        </div>
+
+        <!-- Formulário de adição (POST ao timeline_view) -->
+        <form id="form-add" method="POST" action="{{ url_for('admin.timeline_view', webinar_id=webinar.id) }}">
+            <div class="grid-3" style="margin-bottom:12px">
                 <div>
-                    <label class="text-sm text-gray-400">Tipo</label>
-                    <select name="event_type" id="event-type"
-                            onchange="toggleFields()"
-                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
-                        <option value="chat">Chat</option>
-                        <option value="cta_popup">CTA Popup</option>
-                        <option value="poll">Poll</option>
+                    <label class="adm-label">Tipo</label>
+                    <select name="event_type" id="event-type" onchange="toggleFields()" class="adm-input adm-select">
+                        <option value="chat">💬 Chat</option>
+                        <option value="cta_popup">🛒 CTA Popup</option>
+                        <option value="poll">📊 Poll</option>
+                        <option value="end_broadcast">🎬 Encerramento</option>
                     </select>
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">Segundo do vídeo</label>
-                    <input type="number" name="trigger_second" min="0" required placeholder="ex: 120"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Segundo do vídeo</label>
+                    <input type="number" name="trigger_second" id="trigger-second" min="0" required placeholder="ex: 1800 = 30min"
+                           class="adm-input">
                 </div>
-                <div class="flex items-end">
-                    <button type="submit"
-                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition">
-                        Salvar evento
+                <div style="display:flex;align-items:flex-end">
+                    <button type="submit" id="submit-btn" class="adm-btn adm-btn-gold" style="width:100%;padding:10px">
+                        + Salvar evento
                     </button>
                 </div>
             </div>
 
             <!-- Campos Chat -->
-            <div id="fields-chat" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+            <div id="fields-chat" class="grid-2" style="margin-bottom:8px">
                 <div>
-                    <label class="text-sm text-gray-400">Nome do autor</label>
-                    <input type="text" name="author" placeholder="ex: Mariana Silva"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Autor</label>
+                    <input type="text" name="author" id="f-author" placeholder="ex: Mariana Silva" class="adm-input">
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">Mensagem</label>
-                    <input type="text" name="message" placeholder="ex: Adorei essa parte! 😍"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Mensagem</label>
+                    <input type="text" name="message" id="f-message" placeholder="ex: Adorei essa parte! 😍" class="adm-input">
                 </div>
             </div>
 
             <!-- Campos CTA -->
-            <div id="fields-cta" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2 hidden">
+            <div id="fields-cta" class="grid-3" style="display:none;margin-bottom:8px">
                 <div>
-                    <label class="text-sm text-gray-400">Título do popup</label>
-                    <input type="text" name="title" placeholder="ex: Oferta especial!"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Título do popup</label>
+                    <input type="text" name="title" id="f-title" placeholder="ex: Oferta especial!" class="adm-input">
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">Countdown (minutos)</label>
-                    <input type="number" name="countdown_minutes" value="15" min="1"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Countdown (minutos)</label>
+                    <input type="number" name="countdown_minutes" id="f-countdown" value="20" min="1" class="adm-input">
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">URL do botão</label>
-                    <input type="text" name="url" placeholder="https://..."
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">URL do botão (opcional)</label>
+                    <input type="text" name="url" id="f-url" placeholder="https://..." class="adm-input">
                 </div>
             </div>
 
             <!-- Campos Poll -->
-            <div id="fields-poll" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2 hidden">
+            <div id="fields-poll" class="grid-2" style="display:none;margin-bottom:8px">
                 <div>
-                    <label class="text-sm text-gray-400">Pergunta</label>
-                    <input type="text" name="question" placeholder="ex: Você já fez cookies antes?"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Pergunta</label>
+                    <input type="text" name="question" id="f-question" placeholder="ex: Você já fez cookies?" class="adm-input">
                 </div>
                 <div>
-                    <label class="text-sm text-gray-400">Opções (separadas por vírgula)</label>
-                    <input type="text" name="options" placeholder="ex: Sim,Não,Às vezes"
-                           class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 mt-1 text-white focus:outline-none focus:border-blue-500">
+                    <label class="adm-label">Opções (vírgula)</label>
+                    <input type="text" name="options" id="f-options" placeholder="Sim,Não,Às vezes" class="adm-input">
                 </div>
             </div>
         </form>
+
+        <!-- Formulário de edição (POST separado) -->
+        <form id="form-edit" method="POST" action="" style="display:none">
+            <!-- Campos são os mesmos, preenchidos por JS -->
+            <input type="hidden" name="event_type" id="edit-event-type">
+            <input type="hidden" name="trigger_second" id="edit-trigger-second">
+            <input type="hidden" name="author" id="edit-author">
+            <input type="hidden" name="message" id="edit-message">
+            <input type="hidden" name="title" id="edit-title">
+            <input type="hidden" name="countdown_minutes" id="edit-countdown">
+            <input type="hidden" name="url" id="edit-url">
+            <input type="hidden" name="question" id="edit-question">
+            <input type="hidden" name="options" id="edit-options">
+        </form>
+
+        <div id="cancel-edit-row" style="display:none;margin-top:8px">
+            <button type="button" class="adm-btn adm-btn-ghost" onclick="cancelEdit()" style="padding:6px 16px;font-size:12px">
+                ✕ Cancelar edição
+            </button>
+        </div>
     </div>
+
 </div>
 
 <script>
+const WEBINAR_ID = {{ webinar.id }};
+
+// ── Visibilidade dos campos por tipo ──────────────────────────────────────
 function toggleFields() {
     const type = document.getElementById('event-type').value;
-    document.getElementById('fields-chat').classList.toggle('hidden', type !== 'chat');
-    document.getElementById('fields-cta').classList.toggle('hidden', type !== 'cta_popup');
-    document.getElementById('fields-poll').classList.toggle('hidden', type !== 'poll');
+    document.getElementById('fields-chat').style.display = (type === 'chat') ? 'grid' : 'none';
+    document.getElementById('fields-cta').style.display = (type === 'cta_popup') ? 'grid' : 'none';
+    document.getElementById('fields-poll').style.display = (type === 'poll') ? 'grid' : 'none';
+}
+toggleFields();
+
+// ── Carregar dados no formulário para edição ──────────────────────────────
+function loadEdit(id, eventType, triggerSecond, payload) {
+    // Muda form-add para submit via form-edit
+    const formAdd = document.getElementById('form-add');
+    const editType = document.getElementById('event-type');
+    const editSecond = document.getElementById('trigger-second');
+    const submitBtn = document.getElementById('submit-btn');
+    const formTitle = document.getElementById('form-title');
+    const badge = document.getElementById('editing-badge');
+    const cancelRow = document.getElementById('cancel-edit-row');
+    const editActionUrl = `/admin/timeline/${WEBINAR_ID}/event/${id}/edit`;
+
+    // Preenche campos visíveis
+    editType.value = eventType;
+    editSecond.value = triggerSecond;
+    toggleFields();
+
+    if (eventType === 'chat') {
+        document.getElementById('f-author').value = payload.author || '';
+        document.getElementById('f-message').value = payload.message || '';
+    } else if (eventType === 'cta_popup') {
+        document.getElementById('f-title').value = payload.title || '';
+        document.getElementById('f-countdown').value = payload.countdown_minutes || 20;
+        document.getElementById('f-url').value = payload.url || '';
+    } else if (eventType === 'poll') {
+        document.getElementById('f-question').value = payload.question || '';
+        document.getElementById('f-options').value = (payload.options || []).join(',');
+    }
+
+    // Redireciona o submit do form-add para a rota de edição
+    formAdd.action = editActionUrl;
+    formAdd.method = 'POST';
+    submitBtn.textContent = '✓ Atualizar evento';
+    submitBtn.style.background = 'linear-gradient(135deg,#3b82f6,#60a5fa)';
+    submitBtn.style.color = '#fff';
+    formTitle.textContent = 'Editar Evento';
+    badge.style.display = '';
+    cancelRow.style.display = '';
+
+    // Scroll até o formulário
+    formAdd.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── Cancelar edição ───────────────────────────────────────────────────────
+function cancelEdit() {
+    const formAdd = document.getElementById('form-add');
+    const submitBtn = document.getElementById('submit-btn');
+    const formTitle = document.getElementById('form-title');
+    const badge = document.getElementById('editing-badge');
+    const cancelRow = document.getElementById('cancel-edit-row');
+
+    formAdd.action = "{{ url_for('admin.timeline_view', webinar_id=webinar.id) }}";
+    formAdd.reset();
+    submitBtn.textContent = '+ Salvar evento';
+    submitBtn.style.background = '';
+    submitBtn.style.color = '';
+    formTitle.textContent = 'Adicionar Evento';
+    badge.style.display = 'none';
+    cancelRow.style.display = 'none';
+    toggleFields();
 }
 </script>
 {% endblock %}

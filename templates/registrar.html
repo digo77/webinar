@@ -422,17 +422,27 @@
 </div>
 
 <script>
+// ── DDI ativo (usado pela máscara) ────────────────────────────────────────
+var activeDDI = '+55';
+
 function toggleCountryDropdown(e) {
     e.stopPropagation();
     const dd = document.getElementById('country-dropdown');
     dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
 }
-function selectCountry(ddi, flag, name) {
+
+function selectCountry(ddi, flag, label) {
     document.getElementById('phone_country_code').value = ddi;
     document.getElementById('selected-flag').textContent = flag;
     document.getElementById('selected-code').textContent = ddi;
     document.getElementById('country-dropdown').style.display = 'none';
+    activeDDI = ddi;
+    // Limpa o campo e foca para nova digitação
+    const phoneInput = document.getElementById('phone_number');
+    phoneInput.value = '';
+    phoneInput.focus();
 }
+
 document.addEventListener('click', function(e) {
     const dd = document.getElementById('country-dropdown');
     const sel = document.getElementById('country-display');
@@ -440,6 +450,58 @@ document.addEventListener('click', function(e) {
         dd.style.display = 'none';
     }
 });
+
+// ── Máscara de telefone ───────────────────────────────────────────────────
+function applyPhoneMask(raw, ddi) {
+    const d = raw.replace(/\D/g, '');
+    if (ddi === '+55') {
+        // (XX) XXXXX-XXXX
+        if (d.length === 0) return '';
+        if (d.length <= 2) return '(' + d;
+        if (d.length <= 7) return '(' + d.slice(0,2) + ') ' + d.slice(2);
+        if (d.length <= 11) return '(' + d.slice(0,2) + ') ' + d.slice(2,7) + '-' + d.slice(7);
+        return '(' + d.slice(0,2) + ') ' + d.slice(2,7) + '-' + d.slice(7,11);
+    }
+    if (ddi === '+1') {
+        // (XXX) XXX-XXXX
+        if (d.length === 0) return '';
+        if (d.length <= 3) return '(' + d;
+        if (d.length <= 6) return '(' + d.slice(0,3) + ') ' + d.slice(3);
+        if (d.length <= 10) return '(' + d.slice(0,3) + ') ' + d.slice(3,6) + '-' + d.slice(6);
+        return '(' + d.slice(0,3) + ') ' + d.slice(3,6) + '-' + d.slice(6,10);
+    }
+    if (ddi === '+351') {
+        // XXX XXX XXX
+        if (d.length === 0) return '';
+        if (d.length <= 3) return d;
+        if (d.length <= 6) return d.slice(0,3) + ' ' + d.slice(3);
+        if (d.length <= 9) return d.slice(0,3) + ' ' + d.slice(3,6) + ' ' + d.slice(6);
+        return d.slice(0,3) + ' ' + d.slice(3,6) + ' ' + d.slice(6,9);
+    }
+    // Demais países: sem máscara
+    return d;
+}
+
+(function() {
+    const phoneInput = document.getElementById('phone_number');
+    if (!phoneInput) return;
+
+    phoneInput.addEventListener('input', function() {
+        const cursor = this.selectionStart;
+        const oldLen = this.value.length;
+        const masked = applyPhoneMask(this.value, activeDDI);
+        this.value = masked;
+        // Reposiciona cursor
+        const diff = masked.length - oldLen;
+        const newCursor = Math.max(0, cursor + diff);
+        try { this.setSelectionRange(newCursor, newCursor); } catch(e) {}
+    });
+
+    // Máscara inicial se já tiver valor (ex: erro no form)
+    if (phoneInput.value) {
+        phoneInput.value = applyPhoneMask(phoneInput.value, activeDDI);
+    }
+})();
 </script>
 </body>
 </html>
