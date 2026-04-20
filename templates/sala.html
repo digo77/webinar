@@ -236,24 +236,35 @@ html, body { overflow-x: hidden; overscroll-behavior-y: contain; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
-/* RESPONSIVE — Mobile Portrait                                              */
+/* RESPONSIVE — Mobile Portrait (estilo YouTube: video fixo + chat rolando)  */
 /* ══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
+    /* Trava a tela: nada na pagina scrolla, so o chat */
+    html, body { overflow: hidden; height: 100%; }
+    .sala-wrapper {
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
     .sala-header {
         padding: 0 12px;
+        flex-shrink: 0;
     }
     .sala-layout {
         grid-template-columns: 1fr;
+        flex: 1;
+        min-height: 0;
         height: auto;
         gap: 0;
         padding: 0;
-        padding-bottom: calc(72px + env(safe-area-inset-bottom));
+        max-width: none;
+        display: flex;
+        flex-direction: column;
     }
     .video-section {
         order: 1;
-        position: sticky;
-        top: calc(52px + env(safe-area-inset-top));
-        z-index: 10;
+        flex-shrink: 0;
         background: #000;
     }
     .video-wrap { border-radius: 0; aspect-ratio: 16/9; width: 100%; }
@@ -261,23 +272,29 @@ html, body { overflow-x: hidden; overscroll-behavior-y: contain; }
         order: 2;
         border-radius: 0;
         border-left: none; border-right: none;
-        /* Ocupa todo espaço abaixo do vídeo (sticky 56vw) — sem altura fixa */
-        min-height: calc(100dvh - 52px - env(safe-area-inset-top) - 56vw);
         flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    .panel-tabs { flex-shrink: 0; background: var(--bg-card); }
+    .tab-btn { padding: 14px 6px; min-height: 44px; }
+    .panel-content {
+        flex: 1;
+        min-height: 0;
         display: flex;
         flex-direction: column;
     }
-    .panel-tabs { position: sticky; top: 0; background: var(--bg-card); z-index: 5; flex-shrink: 0; }
-    .tab-btn { padding: 14px 6px; min-height: 44px; }
-    .panel-content { flex: 1; min-height: 0; }
     .chat-messages {
         flex: 1;
         min-height: 0;
         overflow-y: auto;
+        overflow-x: hidden;
         padding: 14px 12px 20px;
-    }
-    /* No mobile o gradient fica mais agressivo pra sensação de "feed ao vivo" */
-    .chat-messages {
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        /* Gradient mais agressivo pra sensação de "feed ao vivo" */
         -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 32px, #000 100%);
                 mask-image: linear-gradient(to bottom, transparent 0, #000 32px, #000 100%);
     }
@@ -285,6 +302,7 @@ html, body { overflow-x: hidden; overscroll-behavior-y: contain; }
     .chat-input-row {
         padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
         background: var(--bg-card);
+        flex-shrink: 0;
     }
     #offer-footer {
         flex-direction: row;
@@ -293,8 +311,11 @@ html, body { overflow-x: hidden; overscroll-behavior-y: contain; }
         padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
     }
     #offer-footer .btn-gold { width: 100%; text-align: center; padding: 14px; font-size: 14px; }
-    /* Tap targets do dropdown da oferta em telas pequenas */
-    #panel-offer { padding: 14px 14px calc(14px + env(safe-area-inset-bottom)) !important; }
+    #panel-offer {
+        padding: 14px 14px calc(14px + env(safe-area-inset-bottom)) !important;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
     .offer-countdown-display { font-size: 40px; }
 }
 
@@ -830,7 +851,7 @@ window.WEBINAR_CONFIG = {
     pitchSecond: {{ config.pitch_second if config and config.pitch_second else 0 }}
 };
 </script>
-<script src="/static/webinar-engine.js?v=20260420c"></script>
+<script src="/static/webinar-engine.js?v=20260420d"></script>
 
 {% endif %}
 {% endblock %}

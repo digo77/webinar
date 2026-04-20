@@ -334,10 +334,10 @@
             scrollToBottom() {
                 const box = this.box;
                 if (!box) return;
-                const last = box.lastElementChild;
-                if (!last) return;
+                // IMPORTANTE: nunca usar scrollIntoView — ele sobe a pagina inteira
+                // (inclusive o video). Rolamos APENAS o container do chat.
                 try {
-                    last.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                    box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
                 } catch (e) {
                     box.scrollTop = box.scrollHeight;
                 }
