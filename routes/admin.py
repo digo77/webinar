@@ -665,7 +665,7 @@ def bulk_whatsapp(webinar_id):
     if not webinar.slug:
         return jsonify({'error': 'Webinário sem slug. Defina um slug antes de enviar.'}), 400
 
-    link = request.host_url.rstrip('/') + url_for('registrar.register') + f'?w={webinar.slug}'
+    base = request.host_url.rstrip('/') + url_for('registrar.register') + f'?w={webinar.slug}'
 
     q = Registrant.query.filter(
         Registrant.webinar_id == webinar_id,
@@ -687,14 +687,16 @@ def bulk_whatsapp(webinar_id):
             skipped += 1
             continue
         first_name = (r.name or '').split()[0] if r.name else ''
-        message = template.replace('{first_name}', first_name).replace('{name}', r.name or '').replace('{link}', link)
+        # Link personalizado: auto-login via &phone= (se o registrant existe, pula o form)
+        personal_link = f'{base}&phone={phone}'
+        message = template.replace('{first_name}', first_name).replace('{name}', r.name or '').replace('{link}', personal_link)
         ok = notify_sendflow(phone, message)
         if ok:
             sent += 1
         else:
             failed += 1
 
-    return jsonify({'ok': True, 'sent': sent, 'failed': failed, 'skipped': skipped, 'link': link})
+    return jsonify({'ok': True, 'sent': sent, 'failed': failed, 'skipped': skipped, 'link': base})
 
 
 @admin_bp.route('/ai-timeline/<int:webinar_id>/import', methods=['POST'])
