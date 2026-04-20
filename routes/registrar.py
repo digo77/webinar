@@ -17,6 +17,29 @@ def register():
     if not webinar:
         return render_template('registrar.html', error='Webinário não encontrado.', webinar=None), 404
 
+    # Se ja tem sessao ativa pra este webinar, pula direto pra sala
+    existing_rid = session.get('registrant_id')
+    if request.method == 'GET' and existing_rid and session.get('webinar_id') == webinar.id:
+        existing = Registrant.query.get(existing_rid)
+        if existing and existing.webinar_id == webinar.id:
+            return redirect(url_for('sala.sala'))
+
+    # Auto-login por telefone na query string: /registrar?w=SLUG&phone=5511...
+    if request.method == 'GET' and request.args.get('phone'):
+        ph = request.args.get('phone', '').strip().replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+        # Remove +55 / 55 opcional
+        if ph.startswith('+'):
+            ph = ph[1:]
+        # Tenta achar registrant por phone_number com ou sem DDI
+        candidates = Registrant.query.filter_by(webinar_id=webinar.id).all()
+        for r in candidates:
+            rph = (r.phone_number or '').replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+            rfull = (r.phone_country_code or '').replace('+', '') + rph
+            if rph and (ph.endswith(rph) or ph == rfull):
+                session['registrant_id'] = r.id
+                session['webinar_id'] = webinar.id
+                return redirect(url_for('sala.sala'))
+
     # UTM params — mantidos tanto no GET quanto no POST (request.url preserva query string)
     utm_source = request.args.get('utm_source', '').strip() or None
     utm_medium = request.args.get('utm_medium', '').strip() or None

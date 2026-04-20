@@ -47,12 +47,33 @@ def sala_preview(slug):
 
 @sala_bp.route('/sala')
 def sala():
-    """Sala do webinário. Requer sessão ativa (registrant_id + webinar_id)."""
+    """Sala do webinário. Requer sessão ativa (registrant_id + webinar_id).
+
+    Aceita tambem:
+      ?token=<JWT>  -> consome o token gerado no webhook Hotmart
+      ?w=<slug>     -> redireciona pra /registrar se nao tiver sessao
+    """
+    # Magic link via JWT (link enviado no WhatsApp pela Hotmart)
+    token = request.args.get('token', '').strip()
+    if token and not session.get('registrant_id'):
+        from services.token_service import validate_token
+        payload = validate_token(token)
+        if payload and payload.get('rid'):
+            r = Registrant.query.get(payload['rid'])
+            if r:
+                session['registrant_id'] = r.id
+                session['webinar_id'] = r.webinar_id
+                # Remove ?token= da URL pra nao vazar no referer
+                return redirect(url_for('sala.sala'))
+
     registrant_id = session.get('registrant_id')
     webinar_id = session.get('webinar_id')
 
     if not registrant_id:
-        # Tenta redirecionar para o registrar do webinário correto
+        # Tenta redirecionar para o registrar (via ?w= ou sessao anterior)
+        slug_hint = request.args.get('w', '').strip()
+        if slug_hint:
+            return redirect(url_for('registrar.register') + f'?w={slug_hint}')
         if webinar_id:
             config = WebinarConfig.query.get(webinar_id)
             if config and config.slug:
