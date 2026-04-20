@@ -356,16 +356,27 @@ html, body { overflow-x: hidden; overscroll-behavior-y: contain; }
     min-height: 100vh; min-height: 100dvh;
     padding: 24px 16px;
     display: flex; align-items: center; justify-content: center;
+    {% if config and config.register_bg_image_url %}
+    background: url('{{ config.register_bg_image_url }}') center/cover no-repeat fixed;
+    {% elif config and config.register_bg_color %}
+    background: {{ config.register_bg_color }};
+    {% else %}
     background: var(--bg-primary);
+    {% endif %}
     position: relative;
     overflow: hidden;
 }
 .wait-wrapper::before {
     content: '';
     position: absolute; inset: 0;
+    {% if config and config.register_bg_image_url %}
+    /* Overlay escuro pra legibilidade sobre a foto */
+    background: rgba(10,5,0,.62);
+    {% else %}
     background:
         radial-gradient(circle at 25% 10%, rgba(200,130,10,.16), transparent 45%),
         radial-gradient(circle at 80% 95%, rgba(245,166,35,.1), transparent 40%);
+    {% endif %}
     pointer-events: none;
 }
 .wait-card {
