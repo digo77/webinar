@@ -191,7 +191,10 @@
             switch (evt.event_type) {
                 case 'chat':
                     setTimeout(function () {
-                        self.Chat.addMessage(p.author || 'Participante', p.message || '');
+                        // Passa o eventId (numero) apenas se o evento veio do banco —
+                        // os fakes do PreloadChat/BackgroundChat nao tem id e nao podem ser deletados.
+                        const eid = typeof evt.id === 'number' ? evt.id : null;
+                        self.Chat.addMessage(p.author || 'Participante', p.message || '', false, eid);
                     }, randomBetween(0, 3000));
                     break;
 
@@ -258,14 +261,19 @@
                 if (chip) chip.classList.remove('show');
             },
 
-            addMessage(author, message, isUser) {
+            addMessage(author, message, isUser, eventId) {
                 const box = this.box;
                 if (!box) return;
                 this._attachScrollListener();
                 const div = document.createElement('div');
                 div.className = 'chat-msg';
+                if (eventId) div.dataset.eventId = eventId;
                 const color = isUser ? 'var(--accent-gold)' : avatarColor(author);
                 const initial = author.charAt(0).toUpperCase();
+                const showDelete = window.WEBINAR_IS_ADMIN && eventId && typeof eventId === 'number';
+                const deleteBtn = showDelete
+                    ? '<button class="chat-delete-btn" data-event-id="' + eventId + '" title="Excluir comentario" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#dc2626;border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;flex-shrink:0;line-height:1">🗑</button>'
+                    : '';
                 div.innerHTML =
                     '<div style="display:flex;gap:10px;align-items:flex-start">' +
                         '<div style="width:32px;height:32px;border-radius:50%;background:' + color + ';display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#fff;flex-shrink:0">' + escHtml(initial) + '</div>' +
@@ -273,6 +281,7 @@
                             '<span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--accent-gold)">' + escHtml(author) + '</span>' +
                             '<p style="font-family:Lato,sans-serif;font-size:13px;color:var(--text-primary);margin:2px 0 0;line-height:1.45;word-wrap:break-word">' + escHtml(message) + '</p>' +
                         '</div>' +
+                        deleteBtn +
                     '</div>';
                 box.appendChild(div);
                 // Poda do DOM: mantém no máximo 80 msgs pra não travar
@@ -683,6 +692,38 @@
             if (fn) fn.call(document);
         }
     };
+
+    // Admin: deletar comentario da timeline direto na sala
+    document.addEventListener('click', async function (e) {
+        const btn = e.target.closest('.chat-delete-btn');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const eventId = btn.dataset.eventId;
+        if (!eventId) return;
+        if (!confirm('Excluir este comentário da timeline? Ação definitiva.')) return;
+        btn.disabled = true;
+        btn.textContent = '…';
+        try {
+            const resp = await fetch('/admin/api/timeline-event/' + eventId, { method: 'DELETE' });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            // Remove do DOM com fade
+            const msg = btn.closest('.chat-msg');
+            if (msg) {
+                msg.style.transition = 'opacity .25s, transform .25s';
+                msg.style.opacity = '0';
+                msg.style.transform = 'translateX(8px)';
+                setTimeout(function () { msg.remove(); }, 250);
+            }
+            // Tambem remove de WebinarEngine.events pra nao redisparar em seek
+            WebinarEngine.events = WebinarEngine.events.filter(function (ev) { return ev.id != eventId; });
+            WebinarEngine.firedEvents.add(parseInt(eventId));
+        } catch (err) {
+            btn.disabled = false;
+            btn.textContent = '🗑';
+            alert('Erro ao excluir: ' + err.message + '. Você está logado como admin?');
+        }
+    });
 
     // Enter para enviar no chat
     document.addEventListener('DOMContentLoaded', function () {

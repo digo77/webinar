@@ -867,6 +867,7 @@ setInterval(() => {
 
 window.WEBINAR_ID = {{ config.id if config else 'null' }};
 window.WEBINAR_PREVIEW = {{ 'true' if is_preview else 'false' }};
+window.WEBINAR_IS_ADMIN = {{ 'true' if is_admin else 'false' }};
 window.WEBINAR_CONFIG = {
     attendeeBase: {{ config.attendee_count_base if config else 47 }},
     upsellUrl: "{{ config.upsell_url if config else '' }}",
@@ -877,7 +878,7 @@ window.WEBINAR_CONFIG = {
     pitchSecond: {{ config.pitch_second if config and config.pitch_second else 0 }}
 };
 </script>
-<script src="/static/webinar-engine.js?v=20260420f"></script>
+<script src="/static/webinar-engine.js?v=20260420g"></script>
 
 {% endif %}
 {% endblock %}

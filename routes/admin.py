@@ -633,6 +633,16 @@ def live_data(webinar_id):
     })
 
 
+@admin_bp.route('/api/timeline-event/<int:event_id>', methods=['DELETE'])
+@login_required
+def timeline_event_delete_api(event_id):
+    """Delete via AJAX (usado na sala em modo admin)."""
+    event = TimelineEvent.query.get_or_404(event_id)
+    db.session.delete(event)
+    db.session.commit()
+    return jsonify({'ok': True, 'deleted': event_id})
+
+
 @admin_bp.route('/api/chat-reply/<int:chat_id>', methods=['POST'])
 @login_required
 def chat_reply(chat_id):

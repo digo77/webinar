@@ -41,6 +41,7 @@ def sala_preview(slug):
                            registrant=registrant,
                            config=config,
                            is_preview=True,
+                           is_admin=bool(session.get('admin_logged_in')),
                            error=None,
                            waiting=False)
 
@@ -115,6 +116,7 @@ def sala():
     return render_template('sala.html',
                            registrant=registrant,
                            config=config,
+                           is_admin=bool(session.get('admin_logged_in')),
                            error=None,
                            waiting=False)
 
