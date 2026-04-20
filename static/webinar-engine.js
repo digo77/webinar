@@ -57,6 +57,8 @@
             this.Viewers.startAnimation();
             this.Chatbot.init();
             this.Tracking.init();
+            this.Presence.start();
+            this.MyChat.start();
             switchTab('chat');
         },
 
@@ -182,6 +184,23 @@
                         '<div style="flex:1;min-width:0">' +
                             '<span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--accent-gold)">' + escHtml(author) + '</span>' +
                             '<p style="font-family:Lato,sans-serif;font-size:12px;color:var(--text-primary);margin:2px 0 0;line-height:1.4">' + escHtml(message) + '</p>' +
+                        '</div>' +
+                    '</div>';
+                box.appendChild(div);
+                this.scrollToBottom();
+            },
+
+            addAdminReply(message) {
+                const box = this.box;
+                if (!box) return;
+                const div = document.createElement('div');
+                div.className = 'chat-msg admin-reply';
+                div.innerHTML =
+                    '<div style="display:flex;gap:8px;align-items:flex-start;background:rgba(34,197,94,.08);border-left:3px solid #16a34a;border-radius:6px;padding:8px 10px">' +
+                        '<div style="width:28px;height:28px;border-radius:50%;background:#16a34a;display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:#fff;flex-shrink:0">👤</div>' +
+                        '<div style="flex:1;min-width:0">' +
+                            '<span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:#16a34a">Equipe · Resposta pra você</span>' +
+                            '<p style="font-family:Lato,sans-serif;font-size:13px;color:var(--text-primary);margin:2px 0 0;line-height:1.4">' + escHtml(message) + '</p>' +
                         '</div>' +
                     '</div>';
                 box.appendChild(div);
@@ -346,6 +365,60 @@
             }
         },
 
+        // ── Presence (heartbeat real) ─────────────────────────────────────────
+        Presence: {
+            start() {
+                const ping = function () {
+                    fetch('/api/heartbeat', { method: 'POST' }).catch(function () {});
+                };
+                ping();
+                setInterval(ping, 15000);
+                // Pulso extra ao voltar do background (mobile)
+                document.addEventListener('visibilitychange', function () {
+                    if (!document.hidden) ping();
+                });
+            }
+        },
+
+        // ── My Chat (mensagens reais do usuário + respostas do admin) ─────────
+        MyChat: {
+            lastId: 0,
+            sentLocalIds: new Set(),
+            async send(message) {
+                try {
+                    const resp = await fetch('/api/user-chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: message })
+                    });
+                    const data = await resp.json();
+                    if (data.ok && data.id) {
+                        this.sentLocalIds.add(data.id);
+                        if (data.id > this.lastId) this.lastId = data.id;
+                    }
+                } catch (e) {}
+            },
+            async poll() {
+                try {
+                    const resp = await fetch('/api/my-chat?since_id=' + this.lastId);
+                    const msgs = await resp.json();
+                    for (const m of msgs) {
+                        if (m.id > this.lastId) this.lastId = m.id;
+                        // Se o admin respondeu, mostra como mensagem da equipe
+                        if (m.admin_reply && !this.sentLocalIds.has('reply-' + m.id)) {
+                            this.sentLocalIds.add('reply-' + m.id);
+                            WebinarEngine.Chat.addAdminReply(m.admin_reply);
+                        }
+                    }
+                } catch (e) {}
+            },
+            start() {
+                const self = this;
+                setInterval(function () { self.poll(); }, 10000);
+                setTimeout(function () { self.poll(); }, 3000);
+            }
+        },
+
         // ── Tracking ──────────────────────────────────────────────────────────
         Tracking: {
             init() {
@@ -389,6 +462,7 @@
         const msg = input.value.trim();
         if (!msg) return;
         WebinarEngine.Chat.addMessage('Você', msg, true);
+        WebinarEngine.MyChat.send(msg);
         WebinarEngine.Chatbot.check(msg);
         input.value = '';
     };

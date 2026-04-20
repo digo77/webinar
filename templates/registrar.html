@@ -151,12 +151,13 @@
             background: var(--bg-secondary);
             border: 1.5px solid var(--border);
             border-radius: 10px;
-            padding: 13px 14px;
+            padding: 14px 14px;
             font-family: 'Lato', sans-serif;
-            font-size: 14px;
+            font-size: 16px; /* evita zoom iOS */
             color: var(--text-primary);
             outline: none;
             transition: border-color .2s, box-shadow .2s;
+            -webkit-appearance: none;
         }
         .input-base::placeholder { color: var(--text-muted); }
         .input-base:focus {
@@ -183,16 +184,17 @@
             display: flex;
             align-items: center;
             gap: 5px;
-            padding: 13px 10px 13px 14px;
+            padding: 14px 10px 14px 14px;
             cursor: pointer;
             border-right: 1px solid var(--border);
             font-family: 'Montserrat', sans-serif;
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 700;
             color: var(--text-primary);
             user-select: none;
             min-width: 88px;
             white-space: nowrap;
+            min-height: 48px;
         }
         .country-display:hover { background: rgba(0,0,0,.04); }
         .country-dropdown {
@@ -232,11 +234,12 @@
             background: transparent;
             border: none;
             outline: none;
-            padding: 13px 14px;
+            padding: 14px 14px;
             font-family: 'Lato', sans-serif;
-            font-size: 14px;
+            font-size: 16px; /* evita zoom iOS */
             color: var(--text-primary);
             min-width: 0;
+            -webkit-appearance: none;
         }
         .phone-number-input::placeholder { color: var(--text-muted); }
 
@@ -246,14 +249,16 @@
             background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light));
             color: #0a0a0f;
             font-family: 'Montserrat', sans-serif;
-            font-size: 13px;
+            font-size: 15px;
             font-weight: 800;
             letter-spacing: .03em;
             border: none;
             border-radius: 10px;
-            padding: 16px;
+            padding: 18px;
+            min-height: 52px;
             cursor: pointer;
             transition: opacity .15s, transform .1s;
+            box-shadow: 0 4px 14px rgba(200,130,10,.25);
         }
         .btn-submit:hover { opacity: .9; }
         .btn-submit:active { transform: scale(.98); }

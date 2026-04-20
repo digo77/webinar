@@ -2,24 +2,31 @@
 {% block title %}{{ config.name if config else 'Webinário' }} — Ao Vivo{% endblock %}
 
 {% block head %}
+<meta name="theme-color" content="#faf8f3">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 /* ── Layout Sala ─────────────────────────────────────────────────────────── */
-.sala-wrapper { min-height: 100vh; background: var(--bg-primary); }
+html, body { overflow-x: hidden; overscroll-behavior-y: contain; }
+.sala-wrapper { min-height: 100vh; min-height: 100dvh; background: var(--bg-primary); }
 
 .sala-header {
     height: 52px;
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0 20px;
+    padding: 0 16px;
     border-bottom: 1px solid var(--border);
     background: var(--bg-secondary);
     position: sticky; top: 0; z-index: 50;
+    padding-top: env(safe-area-inset-top);
+    height: calc(52px + env(safe-area-inset-top));
 }
 
 .sala-layout {
     display: grid;
-    grid-template-columns: 1fr 320px;
+    grid-template-columns: 1fr 340px;
     gap: 16px;
     height: calc(100vh - 52px);
+    height: calc(100dvh - 52px);
     max-width: 1400px;
     margin: 0 auto;
     padding: 16px;
@@ -108,20 +115,24 @@
 }
 .chat-input {
     flex: 1; background: var(--bg-secondary);
-    border: 1px solid var(--border); border-radius: 20px;
-    padding: 9px 14px; font-family: 'Lato', sans-serif; font-size: 13px;
+    border: 1px solid var(--border); border-radius: 22px;
+    padding: 11px 16px; font-family: 'Lato', sans-serif;
+    font-size: 16px; /* evita zoom iOS ao focar */
     color: var(--text-primary); outline: none; transition: border-color .2s;
     min-width: 0;
+    -webkit-appearance: none;
 }
 .chat-input:focus { border-color: var(--accent-gold); }
 .chat-input::placeholder { color: var(--text-muted); }
 .chat-send-btn {
     background: var(--accent-gold); color: #fff; border: none;
-    border-radius: 50%; width: 34px; height: 34px; font-size: 16px; font-weight: 700;
+    border-radius: 50%; width: 42px; height: 42px; font-size: 18px; font-weight: 700;
     cursor: pointer; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
-    transition: opacity .15s;
+    transition: opacity .15s, transform .1s;
+    box-shadow: 0 2px 8px rgba(200,130,10,.25);
 }
+.chat-send-btn:active { transform: scale(.92); }
 .chat-send-btn:hover { opacity: .85; }
 
 /* ── Purchase banner ────────────────────────────────────────────────────── */
@@ -187,33 +198,54 @@
 /* RESPONSIVE — Mobile Portrait                                              */
 /* ══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
+    .sala-header {
+        padding: 0 12px;
+    }
     .sala-layout {
         grid-template-columns: 1fr;
         height: auto;
         gap: 0;
         padding: 0;
-        padding-bottom: 64px;
+        padding-bottom: calc(72px + env(safe-area-inset-bottom));
     }
-    .video-section { order: 1; }
+    .video-section {
+        order: 1;
+        position: sticky;
+        top: calc(52px + env(safe-area-inset-top));
+        z-index: 10;
+        background: #000;
+    }
     .video-wrap { border-radius: 0; aspect-ratio: 16/9; width: 100%; }
     .panel-section {
         order: 2;
         border-radius: 0;
         border-left: none; border-right: none;
-        height: 300px;
-        flex-shrink: 0;
+        min-height: calc(100dvh - 52px - env(safe-area-inset-top) - 56vw);
+        flex: 1;
     }
+    .panel-tabs { position: sticky; top: 0; background: var(--bg-card); z-index: 5; }
+    .tab-btn { padding: 14px 6px; min-height: 44px; }
     .chat-messages {
-        height: calc(300px - 90px);
-        flex: none;
+        flex: 1;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        padding-bottom: 16px;
+    }
+    .chat-input-row {
+        padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+        background: var(--bg-card);
     }
     #offer-footer {
-        flex-direction: column;
+        flex-direction: row;
+        flex-wrap: wrap;
         gap: 8px;
-        padding: 10px 16px;
+        padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
     }
-    #offer-footer .btn-gold { width: 100%; text-align: center; }
+    #offer-footer .btn-gold { width: 100%; text-align: center; padding: 14px; font-size: 14px; }
+    /* Tap targets do dropdown da oferta em telas pequenas */
+    #panel-offer { padding: 14px 14px calc(14px + env(safe-area-inset-bottom)) !important; }
+    .offer-countdown-display { font-size: 40px; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
@@ -222,8 +254,9 @@
 @media (orientation: landscape) and (max-height: 500px) {
     .sala-header { display: none; }
     .sala-layout {
-        grid-template-columns: 60% 40%;
+        grid-template-columns: 62% 38%;
         height: 100vh;
+        height: 100dvh;
         gap: 0;
         padding: 0;
         padding-bottom: 0;
@@ -234,10 +267,21 @@
         aspect-ratio: auto;
         height: 100%;
     }
-    .video-section { height: 100vh; }
-    .panel-section { border-radius: 0; height: 100vh; }
+    .video-section {
+        height: 100vh;
+        height: 100dvh;
+        position: static;
+    }
+    .panel-section {
+        border-radius: 0;
+        height: 100vh;
+        height: 100dvh;
+        min-height: 0;
+    }
     .live-badge-float { display: flex; }
-    .chat-messages { height: calc(100vh - 120px); flex: none; }
+    .chat-messages { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .chat-input-row { padding: 8px 10px; }
+    .tab-btn { padding: 10px 4px; font-size: 10px; }
 }
 </style>
 {% endblock %}
@@ -386,7 +430,7 @@ setInterval(updateCountdown, 1000);
                     <p style="font-family:'Lato',sans-serif;font-size:13px;color:var(--text-secondary)">Sua mensagem será respondida em breve.</p>
                 </div>
                 <textarea id="support-input" rows="4" placeholder="Escreva sua dúvida aqui..."
-                    style="width:100%;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text-primary);font-family:'Lato',sans-serif;font-size:13px;resize:none;outline:none;transition:border-color .2s"
+                    style="width:100%;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text-primary);font-family:'Lato',sans-serif;font-size:16px;resize:none;outline:none;transition:border-color .2s;-webkit-appearance:none"
                     onfocus="this.style.borderColor='var(--accent-gold)'" onblur="this.style.borderColor='var(--border)'"></textarea>
                 <button onclick="sendSupport()"
                     style="background:linear-gradient(135deg,var(--accent-gold),var(--accent-gold-light));color:#0a0a0f;border:none;border-radius:8px;padding:12px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;cursor:pointer;width:100%;transition:opacity .15s"

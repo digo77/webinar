@@ -9,7 +9,8 @@ import pytz
 from flask import (Blueprint, current_app, jsonify, redirect,
                    render_template, request, session, url_for)
 
-from models import Registrant, TimelineEvent, WebinarConfig, db
+from models import (LivePresence, Registrant, TimelineEvent,
+                    UserChatMessage, WebinarConfig, db)
 from services.scheduler import BRT, DAY_NAMES
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -563,6 +564,136 @@ def timeline_event_edit(webinar_id, event_id):
 
     db.session.commit()
     return redirect(url_for('admin.timeline_view', webinar_id=webinar_id))
+
+
+# ---------------------------------------------------------------------------
+# LIVE: presença real + chat real
+# ---------------------------------------------------------------------------
+
+LIVE_WINDOW_SECONDS = 45  # considera "ao vivo" quem deu heartbeat nos últimos 45s
+
+
+@admin_bp.route('/webinar/<int:webinar_id>/live')
+@login_required
+def live_view(webinar_id):
+    webinar = WebinarConfig.query.get_or_404(webinar_id)
+    return render_template('admin/live.html', webinar=webinar)
+
+
+@admin_bp.route('/api/live-data/<int:webinar_id>')
+@login_required
+def live_data(webinar_id):
+    """JSON com presença ativa + feed de chat. Polled pelo admin."""
+    cutoff = datetime.utcnow() - timedelta(seconds=LIVE_WINDOW_SECONDS)
+
+    presence = db.session.query(LivePresence, Registrant).join(
+        Registrant, LivePresence.registrant_id == Registrant.id
+    ).filter(
+        LivePresence.webinar_id == webinar_id,
+        LivePresence.last_seen >= cutoff,
+    ).order_by(LivePresence.last_seen.desc()).all()
+
+    viewers = [
+        {
+            'registrant_id': r.id,
+            'name': r.name or '—',
+            'phone': ((r.phone_country_code or '') + ' ' + (r.phone_number or '')).strip() or None,
+            'last_seen_sec_ago': int((datetime.utcnow() - p.last_seen).total_seconds()),
+        }
+        for p, r in presence
+    ]
+
+    since_id = int(request.args.get('since_id', 0) or 0)
+    q = db.session.query(UserChatMessage, Registrant).join(
+        Registrant, UserChatMessage.registrant_id == Registrant.id
+    ).filter(UserChatMessage.webinar_id == webinar_id)
+    if since_id:
+        q = q.filter(UserChatMessage.id > since_id)
+    chat_rows = q.order_by(UserChatMessage.created_at.desc()).limit(200).all()
+
+    chat = [
+        {
+            'id': m.id,
+            'registrant_id': r.id,
+            'name': r.name or '—',
+            'phone': ((r.phone_country_code or '') + ' ' + (r.phone_number or '')).strip() or None,
+            'message': m.message,
+            'created_at': m.created_at.isoformat() if m.created_at else None,
+            'admin_reply': m.admin_reply,
+            'replied_at': m.replied_at.isoformat() if m.replied_at else None,
+        }
+        for m, r in chat_rows
+    ]
+
+    return jsonify({
+        'viewers': viewers,
+        'viewer_count': len(viewers),
+        'chat': chat,
+    })
+
+
+@admin_bp.route('/api/chat-reply/<int:chat_id>', methods=['POST'])
+@login_required
+def chat_reply(chat_id):
+    msg = UserChatMessage.query.get_or_404(chat_id)
+    data = request.get_json(silent=True) or {}
+    reply = (data.get('reply') or '').strip()
+    if not reply:
+        return jsonify({'error': 'empty'}), 400
+    msg.admin_reply = reply[:500]
+    msg.replied_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({'ok': True, 'replied_at': msg.replied_at.isoformat()})
+
+
+# ---------------------------------------------------------------------------
+# Disparo em lote de WhatsApp via SendFlow
+# ---------------------------------------------------------------------------
+
+@admin_bp.route('/webinar/<int:webinar_id>/bulk-whatsapp', methods=['POST'])
+@login_required
+def bulk_whatsapp(webinar_id):
+    from services.notifier import notify_sendflow
+    webinar = WebinarConfig.query.get_or_404(webinar_id)
+
+    data = request.get_json(silent=True) or {}
+    template = (data.get('template')
+                or "Oi {first_name}! Sua aula ao vivo começa em instantes. Acesse pelo link: {link}").strip()
+    only_today = bool(data.get('only_today', False))
+
+    if not webinar.slug:
+        return jsonify({'error': 'Webinário sem slug. Defina um slug antes de enviar.'}), 400
+
+    link = request.host_url.rstrip('/') + url_for('registrar.register') + f'?w={webinar.slug}'
+
+    q = Registrant.query.filter(
+        Registrant.webinar_id == webinar_id,
+        Registrant.phone_number.isnot(None),
+        Registrant.phone_number != '',
+    )
+    if only_today:
+        today = datetime.now(BRT).date()
+        q = q.filter(
+            db.func.date(Registrant.webinar_date) == today
+        )
+
+    sent = 0
+    failed = 0
+    skipped = 0
+    for r in q.all():
+        phone = (r.phone_country_code or '+55').replace('+', '') + (r.phone_number or '').replace(' ', '').replace('(', '').replace(')', '').replace('-', '')
+        if len(phone) < 10:
+            skipped += 1
+            continue
+        first_name = (r.name or '').split()[0] if r.name else ''
+        message = template.replace('{first_name}', first_name).replace('{name}', r.name or '').replace('{link}', link)
+        ok = notify_sendflow(phone, message)
+        if ok:
+            sent += 1
+        else:
+            failed += 1
+
+    return jsonify({'ok': True, 'sent': sent, 'failed': failed, 'skipped': skipped, 'link': link})
 
 
 @admin_bp.route('/ai-timeline/<int:webinar_id>/import', methods=['POST'])

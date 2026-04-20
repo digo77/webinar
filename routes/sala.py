@@ -1,6 +1,7 @@
 import json
+from datetime import datetime
 from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
-from models import Registrant, TimelineEvent, WebinarConfig, db
+from models import LivePresence, Registrant, TimelineEvent, UserChatMessage, WebinarConfig, db
 from services.scheduler import BRT, is_webinar_open
 
 sala_bp = Blueprint('sala', __name__)
@@ -132,3 +133,80 @@ def support():
     db.session.add(msg)
     db.session.commit()
     return jsonify({'ok': True})
+
+
+@sala_bp.route('/api/heartbeat', methods=['POST'])
+def heartbeat():
+    """Ping de presença. Frontend chama a cada ~15s enquanto a sala está aberta."""
+    registrant_id = session.get('registrant_id')
+    webinar_id = session.get('webinar_id')
+    if not registrant_id or not webinar_id:
+        return jsonify({'error': 'no session'}), 401
+
+    presence = LivePresence.query.filter_by(registrant_id=registrant_id).first()
+    now = datetime.utcnow()
+    ua = (request.headers.get('User-Agent') or '')[:255]
+    if presence:
+        presence.last_seen = now
+        presence.webinar_id = webinar_id
+        presence.user_agent = ua
+    else:
+        presence = LivePresence(
+            registrant_id=registrant_id,
+            webinar_id=webinar_id,
+            last_seen=now,
+            user_agent=ua,
+        )
+        db.session.add(presence)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@sala_bp.route('/api/user-chat', methods=['POST'])
+def user_chat_post():
+    """Persiste mensagem do usuário. Só o próprio usuário e o admin veem depois."""
+    data = request.get_json(silent=True) or {}
+    message = (data.get('message') or '').strip()
+    if not message:
+        return jsonify({'error': 'empty'}), 400
+    if len(message) > 500:
+        message = message[:500]
+
+    registrant_id = session.get('registrant_id')
+    webinar_id = session.get('webinar_id')
+    if not registrant_id:
+        return jsonify({'error': 'no session'}), 401
+
+    msg = UserChatMessage(
+        registrant_id=registrant_id,
+        webinar_id=webinar_id,
+        message=message,
+    )
+    db.session.add(msg)
+    db.session.commit()
+    return jsonify({'ok': True, 'id': msg.id, 'created_at': msg.created_at.isoformat()})
+
+
+@sala_bp.route('/api/my-chat')
+def my_chat():
+    """Retorna as mensagens do próprio usuário (com respostas do admin, se houver)."""
+    registrant_id = session.get('registrant_id')
+    if not registrant_id:
+        return jsonify([])
+    since_id = int(request.args.get('since_id', 0) or 0)
+
+    q = UserChatMessage.query.filter_by(registrant_id=registrant_id)
+    if since_id:
+        q = q.filter(UserChatMessage.id > since_id)
+    msgs = q.order_by(UserChatMessage.created_at).limit(100).all()
+
+    return jsonify([
+        {
+            'id': m.id,
+            'message': m.message,
+            'created_at': m.created_at.isoformat() if m.created_at else None,
+            'admin_reply': m.admin_reply,
+            'replied_at': m.replied_at.isoformat() if m.replied_at else None,
+        }
+        for m in msgs
+    ])

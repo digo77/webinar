@@ -79,3 +79,25 @@ class SupportMessage(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     answered = db.Column(db.Boolean, default=False)
     registrant = db.relationship('Registrant', backref='support_messages')
+
+
+class LivePresence(db.Model):
+    __tablename__ = 'live_presence'
+    id = db.Column(db.Integer, primary_key=True)
+    registrant_id = db.Column(db.Integer, db.ForeignKey('registrants.id'), unique=True)
+    webinar_id = db.Column(db.Integer, index=True)
+    last_seen = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    user_agent = db.Column(db.Text)
+    registrant = db.relationship('Registrant', backref='presence')
+
+
+class UserChatMessage(db.Model):
+    __tablename__ = 'user_chat_messages'
+    id = db.Column(db.Integer, primary_key=True)
+    registrant_id = db.Column(db.Integer, db.ForeignKey('registrants.id'), index=True)
+    webinar_id = db.Column(db.Integer, index=True)
+    message = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    admin_reply = db.Column(db.Text)
+    replied_at = db.Column(db.DateTime)
+    registrant = db.relationship('Registrant', backref='user_chat')
