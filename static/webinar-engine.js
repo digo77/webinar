@@ -53,13 +53,63 @@
 
         async init() {
             await this.loadEvents();
-            this.startVturbListener();
+            if (window.WEBINAR_PREVIEW) {
+                this.startPreviewTimer();
+            } else {
+                this.startVturbListener();
+            }
             this.Viewers.startAnimation();
             this.Chatbot.init();
             this.Tracking.init();
             this.Presence.start();
             this.MyChat.start();
             switchTab('chat');
+        },
+
+        // Timer controlado para modo preview — ignora VTurb, permite seek via botões
+        startPreviewTimer() {
+            const self = this;
+            let lastTick = Date.now();
+            self.previewPaused = false;
+
+            setInterval(function () {
+                if (self.previewPaused) { lastTick = Date.now(); return; }
+                const now = Date.now();
+                const dt = (now - lastTick) / 1000;
+                lastTick = now;
+                self.currentTime += dt;
+                self.tick(self.currentTime);
+                const nowEl = document.getElementById('preview-now');
+                if (nowEl) {
+                    const m = Math.floor(self.currentTime / 60);
+                    const s = String(Math.floor(self.currentTime % 60)).padStart(2, '0');
+                    nowEl.textContent = m + ':' + s;
+                }
+            }, 250);
+
+            // Botões "Pular pra X"
+            document.addEventListener('click', function (e) {
+                const btn = e.target.closest('.preview-skip');
+                if (!btn) return;
+                const sec = parseInt(btn.dataset.sec) || 0;
+                self.seekTo(sec);
+            });
+        },
+
+        // Reseta firedEvents e re-dispara tudo até `sec`
+        seekTo(sec) {
+            this.currentTime = sec;
+            // Re-sincroniza: marca como fired tudo que já ocorreu, limpa chat visível
+            this.firedEvents = new Set();
+            const chatBox = document.getElementById('chat-box');
+            if (chatBox) chatBox.innerHTML = '';
+            // Marca instantaneamente os eventos anteriores para NÃO refirar
+            for (const evt of this.events) {
+                if (evt.trigger_second < sec - 1) {
+                    this.firedEvents.add(evt.id);
+                }
+            }
+            // Os eventos entre sec-1 e sec disparam normalmente no próximo tick
         },
 
         async loadEvents() {

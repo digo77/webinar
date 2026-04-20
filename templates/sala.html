@@ -553,11 +553,24 @@ setInterval(() => {
 <div class="sala-wrapper">
 
     {% if is_preview %}
-    <!-- Banner PREVIEW -->
-    <div style="background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#0a0a0f;padding:8px 16px;text-align:center;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;letter-spacing:.02em;position:sticky;top:0;z-index:60;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap">
-        <span style="font-size:14px">⚠️</span>
-        <span>MODO PREVIEW</span>
-        <span style="opacity:.75;font-weight:500">· Você não está sendo contado como participante real</span>
+    <!-- Banner PREVIEW com controle de tempo -->
+    <div style="background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#0a0a0f;padding:10px 14px;position:sticky;top:0;z-index:60;box-shadow:0 2px 12px rgba(0,0,0,.15)">
+        <div style="max-width:1400px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700">
+            <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:180px">
+                <span style="font-size:14px">⚠️</span>
+                <span>MODO PREVIEW</span>
+                <span style="opacity:.7;font-weight:500;font-size:11px">· não é contado como participante real</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <span style="opacity:.75;font-weight:500;font-size:11px">Pular pra:</span>
+                <button class="preview-skip" data-sec="0" style="background:rgba(0,0,0,.15);border:1px solid rgba(0,0,0,.2);border-radius:6px;padding:4px 10px;font-family:inherit;font-weight:700;font-size:11px;color:#0a0a0f;cursor:pointer">Início</button>
+                <button class="preview-skip" data-sec="300" style="background:rgba(0,0,0,.15);border:1px solid rgba(0,0,0,.2);border-radius:6px;padding:4px 10px;font-family:inherit;font-weight:700;font-size:11px;color:#0a0a0f;cursor:pointer">5min</button>
+                <button class="preview-skip" data-sec="900" style="background:rgba(0,0,0,.15);border:1px solid rgba(0,0,0,.2);border-radius:6px;padding:4px 10px;font-family:inherit;font-weight:700;font-size:11px;color:#0a0a0f;cursor:pointer">15min</button>
+                <button class="preview-skip" data-sec="1800" style="background:rgba(0,0,0,.15);border:1px solid rgba(0,0,0,.2);border-radius:6px;padding:4px 10px;font-family:inherit;font-weight:700;font-size:11px;color:#0a0a0f;cursor:pointer">30min</button>
+                <button class="preview-skip" data-sec="{{ config.pitch_second or 1800 }}" style="background:#0a0a0f;border:none;border-radius:6px;padding:4px 10px;font-family:inherit;font-weight:800;font-size:11px;color:#fbbf24;cursor:pointer">🔥 Pitch</button>
+                <span id="preview-now" style="opacity:.75;font-weight:500;font-size:11px;font-family:monospace;min-width:40px">0:00</span>
+            </div>
+        </div>
     </div>
     {% endif %}
 
@@ -742,6 +755,7 @@ setInterval(() => {
 <!-- ── Dados para o JS ──────────────────────────────────────────────────── -->
 <script>
 window.WEBINAR_ID = {{ config.id if config else 'null' }};
+window.WEBINAR_PREVIEW = {{ 'true' if is_preview else 'false' }};
 window.WEBINAR_CONFIG = {
     attendeeBase: {{ config.attendee_count_base if config else 47 }},
     upsellUrl: "{{ config.upsell_url if config else '' }}",
