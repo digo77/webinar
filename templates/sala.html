@@ -239,23 +239,26 @@ html, body { overflow-x: hidden; overscroll-behavior-y: contain; }
 /* RESPONSIVE — Mobile Portrait (estilo YouTube: video fixo + chat rolando)  */
 /* ══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
-    /* Trava a tela: wrapper fixed cobre 100% da viewport real (evita quirk
-       do 100dvh/100vh no Safari iOS com a URL bar inferior). */
+    /* Trava a tela: wrapper usa --vh setado por JS pra contornar o quirk
+       do 100vh/100dvh com URL bar dinamica do Safari iOS. */
     html, body {
         overflow: hidden;
         height: 100%;
         width: 100%;
-        position: fixed;
-        inset: 0;
+        margin: 0;
+        padding: 0;
     }
     .sala-wrapper {
         position: fixed;
-        inset: 0;
+        left: 0; right: 0; top: 0;
         width: 100%;
-        height: 100%;
+        height: 100vh;
+        height: calc(var(--vh, 1vh) * 100);
+        height: 100dvh;
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        background: var(--bg-card);
     }
     .sala-header {
         padding: 0 12px;
@@ -263,18 +266,20 @@ html, body { overflow-x: hidden; overscroll-behavior-y: contain; }
     }
     .sala-layout {
         grid-template-columns: 1fr;
-        flex: 1;
+        flex: 1 1 auto;
         min-height: 0;
         height: auto;
         gap: 0;
         padding: 0;
+        margin: 0;
         max-width: none;
         display: flex;
         flex-direction: column;
+        overflow: hidden;
     }
     .video-section {
         order: 1;
-        flex-shrink: 0;
+        flex: 0 0 auto;
         background: #000;
     }
     .video-wrap { border-radius: 0; aspect-ratio: 16/9; width: 100%; }
@@ -282,7 +287,7 @@ html, body { overflow-x: hidden; overscroll-behavior-y: contain; }
         order: 2;
         border-radius: 0;
         border-left: none; border-right: none;
-        flex: 1;
+        flex: 1 1 auto;
         min-height: 0;
         display: flex;
         flex-direction: column;
@@ -646,7 +651,7 @@ setInterval(() => {
 
     {% if is_preview %}
     <!-- Banner PREVIEW com controle de tempo -->
-    <div style="background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#0a0a0f;padding:10px 14px;position:sticky;top:0;z-index:60;box-shadow:0 2px 12px rgba(0,0,0,.15)">
+    <div style="background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#0a0a0f;padding:10px 14px;z-index:60;box-shadow:0 2px 12px rgba(0,0,0,.15);flex-shrink:0">
         <div style="max-width:1400px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700">
             <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:180px">
                 <span style="font-size:14px">⚠️</span>
@@ -849,6 +854,17 @@ setInterval(() => {
 
 <!-- ── Dados para o JS ──────────────────────────────────────────────────── -->
 <script>
+// iOS Safari viewport fix — 100vh/100dvh nao cobre a tela real quando a URL
+// bar esta visivel. Setamos --vh via window.innerHeight.
+(function setVH() {
+    const apply = function () {
+        document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
+    };
+    apply();
+    window.addEventListener('resize', apply);
+    window.addEventListener('orientationchange', function () { setTimeout(apply, 150); });
+})();
+
 window.WEBINAR_ID = {{ config.id if config else 'null' }};
 window.WEBINAR_PREVIEW = {{ 'true' if is_preview else 'false' }};
 window.WEBINAR_CONFIG = {
@@ -861,7 +877,7 @@ window.WEBINAR_CONFIG = {
     pitchSecond: {{ config.pitch_second if config and config.pitch_second else 0 }}
 };
 </script>
-<script src="/static/webinar-engine.js?v=20260420e"></script>
+<script src="/static/webinar-engine.js?v=20260420f"></script>
 
 {% endif %}
 {% endblock %}
