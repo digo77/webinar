@@ -284,6 +284,8 @@
                         deleteBtn +
                     '</div>';
                 box.appendChild(div);
+                // Reset do "silencio" pro BackgroundChat nao competir
+                if (WebinarEngine.BackgroundChat) WebinarEngine.BackgroundChat.lastMsgAt = Date.now();
                 // Poda do DOM: mantém no máximo 80 msgs pra não travar
                 while (box.children.length > 80) box.removeChild(box.firstChild);
                 if (isUser || this._stickToBottom) {
@@ -476,72 +478,66 @@
             }
         },
 
-        // ── Pre-populate: chat já nasce fervendo ──────────────────────────────
+        // ── Pre-populate: só se a timeline começa tarde ──────────────────────
         PreloadChat: {
             saudacoes: [
                 'Boa noite pessoal!', 'Oiê, cheguei!', 'Vim direto do trabalho 😅',
-                'Boa! Essa aula eu não podia perder', 'Até que enfim!', 'Eba, começou!',
-                'De Porto Alegre aqui 👋', 'Salvador presente 🧡', 'Manaus chegando',
-                'Esperando há dias essa aula', 'Bem aqui esperando', 'Tô ansiosa!',
-                'Vamo que vamo', 'Primeira vez numa aula dessas', 'Trouxe papel e caneta 📝',
-                'Tô amando já', 'Que emoção', 'Já separei meu caderno',
-                'Vamos que a aula tá linda', 'Chef arrasando como sempre ❤️',
+                'Até que enfim!', 'Eba, começou!', 'De Porto Alegre aqui 👋',
+                'Salvador presente 🧡', 'Manaus chegando', 'Tô ansiosa!',
                 'Boa tarde! Aqui de BH', 'Rio de Janeiro ó 🌊', 'Recife presente',
-                'Curitiba chegou', 'Brasília tmj', 'Tô na expectativa viu',
-                'Não vejo a hora', 'Adoro as aulas!', 'Não perco nenhuma',
+                'Curitiba chegou', 'Brasília tmj', 'Trouxe papel e caneta 📝',
             ],
             run() {
-                const nomes = NOMES_BR;
-                const sobrenomes = SOBRENOMES_BR;
-                const used = new Set();
-                let i = 0;
-                // 8 msgs entrando em ritmo realista (500ms a 2s)
-                const schedule = [300, 900, 1600, 2400, 3300, 4200, 5200, 6300];
-                while (i < schedule.length) {
-                    const delay = schedule[i];
-                    const nome = nomes[Math.floor(Math.random() * nomes.length)] + ' ' + sobrenomes[Math.floor(Math.random() * sobrenomes.length)];
-                    const msg = this.saudacoes[Math.floor(Math.random() * this.saudacoes.length)];
-                    if (!used.has(nome + '|' + msg)) {
-                        used.add(nome + '|' + msg);
-                        setTimeout(function () {
-                            WebinarEngine.Chat.addMessage(nome, msg);
-                        }, delay);
-                        i++;
-                    } else if (used.size > 100) { break; }
-                }
+                // Só dispara saudações se o primeiro chat da timeline demora >15s
+                const firstChat = (WebinarEngine.events || []).find(function (e) { return e.event_type === 'chat'; });
+                if (!firstChat || firstChat.trigger_second < 15) return;
+
+                const n = Math.min(5, Math.floor(firstChat.trigger_second / 3));
+                const schedule = [];
+                for (let i = 0; i < n; i++) schedule.push(500 + i * 1200);
+                const saudacoes = this.saudacoes;
+                schedule.forEach(function (delay, idx) {
+                    const nome = NOMES_BR[Math.floor(Math.random() * NOMES_BR.length)] + ' ' +
+                                 SOBRENOMES_BR[Math.floor(Math.random() * SOBRENOMES_BR.length)];
+                    const msg = saudacoes[Math.floor(Math.random() * saudacoes.length)];
+                    setTimeout(function () { WebinarEngine.Chat.addMessage(nome, msg); }, delay);
+                });
             }
         },
 
-        // ── Background chat: fluxo contínuo de prova social ──────────────────
+        // ── Background chat: SÓ preenche vazios longos da timeline ──────────
+        // Dispara uma msg fake apenas se passarem >25s desde o ultimo
+        // comentario (timeline ou fake). Respeita o ritmo da sua timeline.
         BackgroundChat: {
             frases: [
                 'Muito bom!', 'Adorando', 'Isso 👏👏', 'Amei a explicação',
-                'Boa boa', '❤️❤️', 'Massa demais', 'Top', 'Tô pirando',
-                'Aprendi tanto já', 'Que show', 'Perfeito',
-                'Não sabia disso!', 'Nossa, ótima dica', 'Salvou minha vida',
-                'Tô anotando tudo', 'Isso aí chef 🔥', 'Maravilha',
-                'Que didática boa', 'Entendi agora', 'Finalmente fez sentido',
-                'Chef o melhor 🧡', 'Sem palavras', 'Meu deus tá bom demais',
-                'Kkkkk', 'Que loucura', 'Vou fazer pra família', 'Minha filha vai amar',
-                'Meu marido vai pirar', 'Já quero provar', 'Deu fome 🥺',
-                'Apaixonada por essa receita', 'Vou me inscrever', 'Como faço pra comprar?',
-                'Tem curso completo?', 'Quanto custa?', 'Parcela?',
+                '❤️❤️', 'Massa demais', 'Top', 'Aprendi tanto já', 'Que show',
+                'Perfeito', 'Tô anotando tudo', 'Maravilha', 'Entendi agora',
+                'Que didática boa', 'Deu fome 🥺', 'Apaixonada por essa receita',
             ],
             _t: null,
             _running: false,
+            lastMsgAt: 0,
+            SILENCE_SECONDS: 25,  // so dispara fake apos 25s sem nenhuma msg
+            markActivity() { this.lastMsgAt = Date.now(); },
             start() {
                 if (this._running) return;
                 this._running = true;
+                this.lastMsgAt = Date.now();
                 const self = this;
                 const loop = function () {
                     if (!self._running) return;
-                    const nome = NOMES_BR[Math.floor(Math.random() * NOMES_BR.length)] + ' ' + SOBRENOMES_BR[Math.floor(Math.random() * SOBRENOMES_BR.length)];
-                    const msg = self.frases[Math.floor(Math.random() * self.frases.length)];
-                    WebinarEngine.Chat.addMessage(nome, msg);
-                    self._t = setTimeout(loop, randomBetween(4000, 9000));
+                    const silenceMs = Date.now() - self.lastMsgAt;
+                    if (silenceMs >= self.SILENCE_SECONDS * 1000) {
+                        const nome = NOMES_BR[Math.floor(Math.random() * NOMES_BR.length)] + ' ' +
+                                     SOBRENOMES_BR[Math.floor(Math.random() * SOBRENOMES_BR.length)];
+                        const msg = self.frases[Math.floor(Math.random() * self.frases.length)];
+                        WebinarEngine.Chat.addMessage(nome, msg);
+                        // addMessage ja chamou markActivity via Chat hook
+                    }
+                    self._t = setTimeout(loop, randomBetween(8000, 14000));
                 };
-                // Começa depois do preload acabar
-                setTimeout(loop, 8000);
+                setTimeout(loop, 15000);
             },
             stop() {
                 this._running = false;
