@@ -113,12 +113,14 @@ html, body { overflow-x: hidden; overscroll-behavior-y: contain; }
             mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 100%);
 }
 .chat-msg {
-    animation: chatSlideUp .4s cubic-bezier(.2,.8,.3,1);
+    animation: chatSlideUp .5s cubic-bezier(.16,.9,.28,1);
     will-change: transform, opacity;
+    transform-origin: bottom center;
 }
 @keyframes chatSlideUp {
-    from { opacity: 0; transform: translateY(18px); }
-    to { opacity: 1; transform: translateY(0); }
+    0% { opacity: 0; transform: translateY(28px) scale(.95); }
+    50% { opacity: 1; }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* Chip "↓ N novas mensagens" quando user scrollou pra cima */
@@ -817,7 +819,7 @@ window.WEBINAR_CONFIG = {
     pitchSecond: {{ config.pitch_second if config and config.pitch_second else 0 }}
 };
 </script>
-<script src="/static/webinar-engine.js"></script>
+<script src="/static/webinar-engine.js?v=20260420c"></script>
 
 {% endif %}
 {% endblock %}

@@ -64,6 +64,9 @@
             this.Presence.start();
             this.MyChat.start();
             switchTab('chat');
+            // Pre-popula chat com mensagens de aquecimento + background contínuo
+            this.PreloadChat.run();
+            this.BackgroundChat.start();
         },
 
         // Timer controlado para modo preview — ignora VTurb, permite seek via botões
@@ -331,11 +334,11 @@
             scrollToBottom() {
                 const box = this.box;
                 if (!box) return;
-                // Smooth se já perto, jump se longe (evita animação enorme)
-                const distance = box.scrollHeight - box.scrollTop - box.clientHeight;
-                if (distance < 300) {
-                    box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
-                } else {
+                const last = box.lastElementChild;
+                if (!last) return;
+                try {
+                    last.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                } catch (e) {
                     box.scrollTop = box.scrollHeight;
                 }
             }
@@ -461,6 +464,79 @@
                         break;
                     }
                 }
+            }
+        },
+
+        // ── Pre-populate: chat já nasce fervendo ──────────────────────────────
+        PreloadChat: {
+            saudacoes: [
+                'Boa noite pessoal!', 'Oiê, cheguei!', 'Vim direto do trabalho 😅',
+                'Boa! Essa aula eu não podia perder', 'Até que enfim!', 'Eba, começou!',
+                'De Porto Alegre aqui 👋', 'Salvador presente 🧡', 'Manaus chegando',
+                'Esperando há dias essa aula', 'Bem aqui esperando', 'Tô ansiosa!',
+                'Vamo que vamo', 'Primeira vez numa aula dessas', 'Trouxe papel e caneta 📝',
+                'Tô amando já', 'Que emoção', 'Já separei meu caderno',
+                'Vamos que a aula tá linda', 'Chef arrasando como sempre ❤️',
+                'Boa tarde! Aqui de BH', 'Rio de Janeiro ó 🌊', 'Recife presente',
+                'Curitiba chegou', 'Brasília tmj', 'Tô na expectativa viu',
+                'Não vejo a hora', 'Adoro as aulas!', 'Não perco nenhuma',
+            ],
+            run() {
+                const nomes = NOMES_BR;
+                const sobrenomes = SOBRENOMES_BR;
+                const used = new Set();
+                let i = 0;
+                // 8 msgs entrando em ritmo realista (500ms a 2s)
+                const schedule = [300, 900, 1600, 2400, 3300, 4200, 5200, 6300];
+                while (i < schedule.length) {
+                    const delay = schedule[i];
+                    const nome = nomes[Math.floor(Math.random() * nomes.length)] + ' ' + sobrenomes[Math.floor(Math.random() * sobrenomes.length)];
+                    const msg = this.saudacoes[Math.floor(Math.random() * this.saudacoes.length)];
+                    if (!used.has(nome + '|' + msg)) {
+                        used.add(nome + '|' + msg);
+                        setTimeout(function () {
+                            WebinarEngine.Chat.addMessage(nome, msg);
+                        }, delay);
+                        i++;
+                    } else if (used.size > 100) { break; }
+                }
+            }
+        },
+
+        // ── Background chat: fluxo contínuo de prova social ──────────────────
+        BackgroundChat: {
+            frases: [
+                'Muito bom!', 'Adorando', 'Isso 👏👏', 'Amei a explicação',
+                'Boa boa', '❤️❤️', 'Massa demais', 'Top', 'Tô pirando',
+                'Aprendi tanto já', 'Que show', 'Perfeito',
+                'Não sabia disso!', 'Nossa, ótima dica', 'Salvou minha vida',
+                'Tô anotando tudo', 'Isso aí chef 🔥', 'Maravilha',
+                'Que didática boa', 'Entendi agora', 'Finalmente fez sentido',
+                'Chef o melhor 🧡', 'Sem palavras', 'Meu deus tá bom demais',
+                'Kkkkk', 'Que loucura', 'Vou fazer pra família', 'Minha filha vai amar',
+                'Meu marido vai pirar', 'Já quero provar', 'Deu fome 🥺',
+                'Apaixonada por essa receita', 'Vou me inscrever', 'Como faço pra comprar?',
+                'Tem curso completo?', 'Quanto custa?', 'Parcela?',
+            ],
+            _t: null,
+            _running: false,
+            start() {
+                if (this._running) return;
+                this._running = true;
+                const self = this;
+                const loop = function () {
+                    if (!self._running) return;
+                    const nome = NOMES_BR[Math.floor(Math.random() * NOMES_BR.length)] + ' ' + SOBRENOMES_BR[Math.floor(Math.random() * SOBRENOMES_BR.length)];
+                    const msg = self.frases[Math.floor(Math.random() * self.frases.length)];
+                    WebinarEngine.Chat.addMessage(nome, msg);
+                    self._t = setTimeout(loop, randomBetween(4000, 9000));
+                };
+                // Começa depois do preload acabar
+                setTimeout(loop, 8000);
+            },
+            stop() {
+                this._running = false;
+                if (this._t) clearTimeout(this._t);
             }
         },
 
