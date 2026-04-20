@@ -220,24 +220,66 @@
         // ── Chat ──────────────────────────────────────────────────────────────
         Chat: {
             get box() { return document.getElementById('chat-box'); },
+            _stickToBottom: true,
+            _unseen: 0,
+            _listenerAttached: false,
+
+            _attachScrollListener() {
+                if (this._listenerAttached) return;
+                const box = this.box;
+                if (!box) return;
+                const self = this;
+                box.addEventListener('scroll', function () {
+                    const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+                    self._stickToBottom = nearBottom;
+                    if (nearBottom) self._clearUnseen();
+                }, { passive: true });
+                this._listenerAttached = true;
+            },
+
+            _bumpUnseen() {
+                this._unseen++;
+                const chip = document.getElementById('chat-new-chip');
+                const count = document.getElementById('chat-new-count');
+                if (chip && count) {
+                    count.textContent = this._unseen;
+                    chip.querySelector('span#chat-new-count').nextSibling &&
+                        (chip.innerHTML = '↓ <span id="chat-new-count">' + this._unseen + '</span> nova' + (this._unseen > 1 ? 's' : ''));
+                    chip.classList.add('show');
+                }
+            },
+
+            _clearUnseen() {
+                this._unseen = 0;
+                const chip = document.getElementById('chat-new-chip');
+                if (chip) chip.classList.remove('show');
+            },
 
             addMessage(author, message, isUser) {
                 const box = this.box;
                 if (!box) return;
+                this._attachScrollListener();
                 const div = document.createElement('div');
                 div.className = 'chat-msg';
                 const color = isUser ? 'var(--accent-gold)' : avatarColor(author);
                 const initial = author.charAt(0).toUpperCase();
                 div.innerHTML =
-                    '<div style="display:flex;gap:8px;align-items:flex-start">' +
-                        '<div style="width:28px;height:28px;border-radius:50%;background:' + color + ';display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:#fff;flex-shrink:0">' + escHtml(initial) + '</div>' +
+                    '<div style="display:flex;gap:10px;align-items:flex-start">' +
+                        '<div style="width:32px;height:32px;border-radius:50%;background:' + color + ';display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#fff;flex-shrink:0">' + escHtml(initial) + '</div>' +
                         '<div style="flex:1;min-width:0">' +
-                            '<span style="font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:var(--accent-gold)">' + escHtml(author) + '</span>' +
-                            '<p style="font-family:Lato,sans-serif;font-size:12px;color:var(--text-primary);margin:2px 0 0;line-height:1.4">' + escHtml(message) + '</p>' +
+                            '<span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--accent-gold)">' + escHtml(author) + '</span>' +
+                            '<p style="font-family:Lato,sans-serif;font-size:13px;color:var(--text-primary);margin:2px 0 0;line-height:1.45;word-wrap:break-word">' + escHtml(message) + '</p>' +
                         '</div>' +
                     '</div>';
                 box.appendChild(div);
-                this.scrollToBottom();
+                // Poda do DOM: mantém no máximo 80 msgs pra não travar
+                while (box.children.length > 80) box.removeChild(box.firstChild);
+                if (isUser || this._stickToBottom) {
+                    this.scrollToBottom();
+                    this._clearUnseen();
+                } else {
+                    this._bumpUnseen();
+                }
             },
 
             addAdminReply(message) {
@@ -288,7 +330,14 @@
 
             scrollToBottom() {
                 const box = this.box;
-                if (box) box.scrollTop = box.scrollHeight;
+                if (!box) return;
+                // Smooth se já perto, jump se longe (evita animação enorme)
+                const distance = box.scrollHeight - box.scrollTop - box.clientHeight;
+                if (distance < 300) {
+                    box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+                } else {
+                    box.scrollTop = box.scrollHeight;
+                }
             }
         },
 
@@ -504,6 +553,12 @@
             if (panel) panel.style.display = (t === tab ? 'flex' : 'none');
             if (btn) btn.classList.toggle('active', t === tab);
         });
+    };
+
+    window.scrollChatToBottom = function () {
+        WebinarEngine.Chat._stickToBottom = true;
+        WebinarEngine.Chat.scrollToBottom();
+        WebinarEngine.Chat._clearUnseen();
     };
 
     window.sendUserChat = function () {

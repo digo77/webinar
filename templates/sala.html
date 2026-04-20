@@ -99,14 +99,53 @@ html, body { overflow-x: hidden; overscroll-behavior-y: contain; }
 }
 
 /* ── Conteúdo do painel ─────────────────────────────────────────────────── */
-.panel-content { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.panel-content { display: flex; flex-direction: column; flex: 1; overflow: hidden; position: relative; }
 
 /* ── Chat ───────────────────────────────────────────────────────────────── */
 .chat-messages {
     flex: 1; overflow-y: auto; padding: 12px;
     display: flex; flex-direction: column; gap: 8px;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    /* Gradient fade no topo — sensação de "mensagens somem no topo" */
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 100%);
+            mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 100%);
 }
-.chat-msg { animation: fadeInUp .25s ease-out; }
+.chat-msg {
+    animation: chatSlideUp .4s cubic-bezier(.2,.8,.3,1);
+    will-change: transform, opacity;
+}
+@keyframes chatSlideUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Chip "↓ N novas mensagens" quando user scrollou pra cima */
+.chat-new-chip {
+    position: absolute;
+    bottom: 72px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, var(--accent-gold), var(--accent-gold-light));
+    color: #0a0a0f;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 7px 14px;
+    border-radius: 99px;
+    box-shadow: 0 4px 16px rgba(200,130,10,.4);
+    cursor: pointer;
+    display: none;
+    z-index: 8;
+    border: none;
+    animation: chipPop .25s ease-out;
+}
+.chat-new-chip.show { display: block; }
+@keyframes chipPop {
+    from { opacity: 0; transform: translate(-50%, 8px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+}
 
 .chat-input-row {
     padding: 10px 12px;
@@ -220,18 +259,27 @@ html, body { overflow-x: hidden; overscroll-behavior-y: contain; }
         order: 2;
         border-radius: 0;
         border-left: none; border-right: none;
+        /* Ocupa todo espaço abaixo do vídeo (sticky 56vw) — sem altura fixa */
         min-height: calc(100dvh - 52px - env(safe-area-inset-top) - 56vw);
         flex: 1;
+        display: flex;
+        flex-direction: column;
     }
-    .panel-tabs { position: sticky; top: 0; background: var(--bg-card); z-index: 5; }
+    .panel-tabs { position: sticky; top: 0; background: var(--bg-card); z-index: 5; flex-shrink: 0; }
     .tab-btn { padding: 14px 6px; min-height: 44px; }
+    .panel-content { flex: 1; min-height: 0; }
     .chat-messages {
         flex: 1;
+        min-height: 0;
         overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-        overscroll-behavior: contain;
-        padding-bottom: 16px;
+        padding: 14px 12px 20px;
     }
+    /* No mobile o gradient fica mais agressivo pra sensação de "feed ao vivo" */
+    .chat-messages {
+        -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 32px, #000 100%);
+                mask-image: linear-gradient(to bottom, transparent 0, #000 32px, #000 100%);
+    }
+    .chat-msg { animation-duration: .45s; }
     .chat-input-row {
         padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
         background: var(--bg-card);
@@ -644,9 +692,12 @@ setInterval(() => {
             <!-- ── Painel CHAT ──────────────────────────────────────── -->
             <div id="panel-chat" class="panel-content">
                 <div id="chat-box" class="chat-messages"></div>
+                <button type="button" id="chat-new-chip" class="chat-new-chip" onclick="scrollChatToBottom(true)">
+                    ↓ <span id="chat-new-count">1</span> nova
+                </button>
                 <div class="chat-input-row">
-                    <input type="text" id="user-chat-input" class="chat-input" placeholder="Digite algo...">
-                    <button class="chat-send-btn" onclick="sendUserChat()">↑</button>
+                    <input type="text" id="user-chat-input" class="chat-input" placeholder="Comente aqui...">
+                    <button class="chat-send-btn" onclick="sendUserChat()" aria-label="Enviar">↑</button>
                 </div>
             </div>
 
