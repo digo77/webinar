@@ -591,6 +591,7 @@ def live_data(webinar_id):
     ).filter(
         LivePresence.webinar_id == webinar_id,
         LivePresence.last_seen >= cutoff,
+        ~Registrant.name.like('PREVIEW_%'),
     ).order_by(LivePresence.last_seen.desc()).all()
 
     viewers = [

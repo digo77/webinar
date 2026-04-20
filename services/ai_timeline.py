@@ -211,7 +211,10 @@ def suggest_chat_events(transcript_segments: list, product_context: str) -> list
     if os.environ.get('ANTHROPIC_API_KEY', '').strip():
         try:
             import anthropic as anthropic_sdk
-            client = anthropic_sdk.Anthropic(api_key=os.environ['ANTHROPIC_API_KEY'].strip())
+            client = anthropic_sdk.Anthropic(
+                api_key=os.environ['ANTHROPIC_API_KEY'].strip(),
+                timeout=240.0,  # 4min — transcrições grandes podem demorar
+            )
             response = client.messages.create(
                 model='claude-sonnet-4-5',
                 max_tokens=4096,
@@ -226,7 +229,10 @@ def suggest_chat_events(transcript_segments: list, product_context: str) -> list
     if raw is None and os.environ.get('OPENAI_API_KEY', '').strip():
         try:
             from openai import OpenAI
-            client = OpenAI(api_key=os.environ['OPENAI_API_KEY'].strip())
+            client = OpenAI(
+                api_key=os.environ['OPENAI_API_KEY'].strip(),
+                timeout=240.0,
+            )
             response = client.chat.completions.create(
                 model='gpt-4o',
                 max_tokens=4096,

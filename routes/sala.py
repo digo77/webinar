@@ -7,6 +7,44 @@ from services.scheduler import BRT, is_webinar_open
 sala_bp = Blueprint('sala', __name__)
 
 
+@sala_bp.route('/sala/preview/<slug>')
+def sala_preview(slug):
+    """Preview público da sala — ignora horário, cria registrante marcado como preview.
+
+    Esse registrante NÃO entra em estatísticas nem em live_presence (name começa
+    com 'PREVIEW_'). Útil pra testar a sala a qualquer hora, sem cadastro real.
+    """
+    config = WebinarConfig.query.filter_by(slug=slug).first()
+    if not config:
+        return render_template('sala.html', error='Webinário não encontrado.'), 404
+
+    preview_email = f'preview-public-{config.id}@autowebinar.local'
+    registrant = Registrant.query.filter_by(email=preview_email, webinar_id=config.id).first()
+    if not registrant:
+        registrant = Registrant(
+            name='PREVIEW_Visitante',
+            email=preview_email,
+            webinar_id=config.id,
+            webinar_date=datetime.utcnow(),
+        )
+        db.session.add(registrant)
+        db.session.commit()
+    else:
+        registrant.webinar_date = datetime.utcnow()
+        db.session.commit()
+
+    session['registrant_id'] = registrant.id
+    session['webinar_id'] = config.id
+    session['is_preview'] = True
+
+    return render_template('sala.html',
+                           registrant=registrant,
+                           config=config,
+                           is_preview=True,
+                           error=None,
+                           waiting=False)
+
+
 @sala_bp.route('/sala')
 def sala():
     """Sala do webinário. Requer sessão ativa (registrant_id + webinar_id)."""
@@ -101,6 +139,10 @@ def track():
     if not registrant:
         return jsonify({'error': 'not found'}), 404
 
+    # Preview público: não grava métricas
+    if session.get('is_preview'):
+        return jsonify({'ok': True, 'preview': True})
+
     if 'watch_time' in data:
         registrant.watch_time_seconds = max(
             registrant.watch_time_seconds or 0,
@@ -143,6 +185,10 @@ def heartbeat():
     if not registrant_id or not webinar_id:
         return jsonify({'error': 'no session'}), 401
 
+    # Preview público NÃO conta como presença real
+    if session.get('is_preview'):
+        return jsonify({'ok': True, 'preview': True})
+
     presence = LivePresence.query.filter_by(registrant_id=registrant_id).first()
     now = datetime.utcnow()
     ua = (request.headers.get('User-Agent') or '')[:255]
@@ -176,6 +222,10 @@ def user_chat_post():
     webinar_id = session.get('webinar_id')
     if not registrant_id:
         return jsonify({'error': 'no session'}), 401
+
+    # Preview público: não persiste no feed do admin
+    if session.get('is_preview'):
+        return jsonify({'ok': True, 'preview': True, 'id': 0, 'created_at': datetime.utcnow().isoformat()})
 
     msg = UserChatMessage(
         registrant_id=registrant_id,

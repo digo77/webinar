@@ -51,6 +51,10 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap">
             <a href="{{ url_for('admin.live_view', webinar_id=webinar.id) }}"
                class="nav-link" style="background:rgba(239,68,68,.12);color:#dc2626;border:1px solid rgba(239,68,68,.25);font-weight:800">🔴 Ao vivo</a>
+            {% if webinar.slug %}
+            <a href="/sala/preview/{{ webinar.slug }}" target="_blank"
+               class="nav-link" style="background:rgba(245,158,11,.12);color:#d97706;border:1px solid rgba(245,158,11,.25)">👁 Preview pública</a>
+            {% endif %}
             <a href="{{ url_for('admin.timeline_view', webinar_id=webinar.id) }}"
                class="nav-link" style="background:rgba(168,85,247,.15);color:#c084fc;border:1px solid rgba(168,85,247,.3)">Timeline</a>
             <a href="{{ url_for('admin.ai_timeline', webinar_id=webinar.id) }}"

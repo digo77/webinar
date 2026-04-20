@@ -33,7 +33,23 @@
             background-color: var(--page-bg, var(--bg-primary));
             color: var(--text-primary);
             min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
         }
+        {% if not (webinar and webinar.register_mode == 2 and webinar.register_bg_image_url) %}
+        /* Modo 1: gradientes radiais sutis pra dar profundidade */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(circle at 20% 0%, rgba(200,130,10,.18), transparent 50%),
+                radial-gradient(circle at 85% 100%, rgba(245,166,35,.12), transparent 45%);
+            z-index: 0;
+        }
+        .wrap { position: relative; z-index: 1; }
+        {% endif %}
         {% if webinar and webinar.register_mode == 2 and webinar.register_bg_image_url %}
         body {
             background-image: url('{{ webinar.register_bg_image_url }}');
@@ -55,6 +71,7 @@
 
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
         .pulse { animation: pulse 2s infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         .wrap {
             min-height: 100vh;
@@ -73,41 +90,67 @@
         .live-badge {
             display: inline-flex;
             align-items: center;
-            gap: 7px;
-            padding: 5px 14px;
+            gap: 8px;
+            padding: 7px 18px;
             border-radius: 99px;
             font-family: 'Montserrat', sans-serif;
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: .08em;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: .1em;
             text-transform: uppercase;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
         .live-badge.live {
-            background: rgba(239,68,68,.1);
-            border: 1px solid rgba(239,68,68,.35);
+            background: rgba(239,68,68,.12);
+            border: 1.5px solid rgba(239,68,68,.4);
             color: #dc2626;
+            box-shadow: 0 0 20px rgba(239,68,68,.2);
         }
         .live-badge.soon {
-            background: rgba(200,130,10,.1);
-            border: 1px solid rgba(200,130,10,.3);
+            background: rgba(200,130,10,.12);
+            border: 1.5px solid rgba(200,130,10,.35);
             color: var(--accent-gold);
+            box-shadow: 0 0 24px rgba(200,130,10,.18);
         }
 
         /* ── Headlines ── */
+        .client-tag {
+            display: inline-block;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            color: var(--accent-gold);
+            margin-bottom: 10px;
+            padding: 4px 12px;
+            background: rgba(200,130,10,.08);
+            border-radius: 6px;
+        }
         h1 {
             font-family: 'Montserrat', sans-serif;
-            font-size: 22px;
+            font-size: 26px;
             font-weight: 800;
-            line-height: 1.25;
+            line-height: 1.2;
             color: var(--text-primary);
-            margin-bottom: 8px;
+            margin-bottom: 10px;
+            letter-spacing: -.01em;
         }
+        @media (min-width: 480px) { h1 { font-size: 30px; } }
         .subtitle {
             font-family: 'Lato', sans-serif;
-            font-size: 14px;
+            font-size: 15px;
             color: var(--text-secondary);
-            line-height: 1.5;
+            line-height: 1.55;
+        }
+
+        /* ── Divider dourado decorativo ── */
+        .gold-divider {
+            width: 40px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-gold), var(--accent-gold-light));
+            border-radius: 2px;
+            margin: 14px auto 14px;
         }
 
         /* ── Bullets ── */
@@ -131,11 +174,40 @@
         .form-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 28px 24px;
-            box-shadow: 0 4px 24px rgba(0,0,0,.06);
-            margin-top: 20px;
+            border-radius: 18px;
+            padding: 32px 26px;
+            box-shadow: 0 10px 40px rgba(0,0,0,.08), 0 2px 8px rgba(0,0,0,.04);
+            margin-top: 24px;
+            position: relative;
+            overflow: hidden;
         }
+        .form-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-gold), var(--accent-gold-light), var(--accent-gold));
+        }
+
+        /* ── Trust signals ── */
+        .trust-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            margin-top: 18px;
+            flex-wrap: wrap;
+        }
+        .trust-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-family: 'Lato', sans-serif;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+        .trust-item strong { color: var(--text-secondary); font-weight: 700; }
         .field-label {
             display: block;
             font-family: 'Montserrat', sans-serif;
@@ -337,10 +409,11 @@
 <!-- MODO 1 e 2: Headline centralizada -->
 <div style="text-align:center;margin-bottom:8px">
     {% if webinar and webinar.client_name %}
-    <p style="font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-gold);margin-bottom:8px">{{ webinar.client_name }}</p>
+    <span class="client-tag">{{ webinar.client_name }}</span>
     {% endif %}
     <h1>{{ headline }}</h1>
-    <p class="subtitle" style="margin-top:8px">{{ subtitle }}</p>
+    <div class="gold-divider"></div>
+    <p class="subtitle">{{ subtitle }}</p>
 </div>
 {% endif %}
 
@@ -350,7 +423,7 @@
     <div class="error-box">{{ error }}</div>
     {% endif %}
 
-    <form method="POST" action="{{ request.url }}" novalidate>
+    <form method="POST" action="{{ request.url }}" novalidate onsubmit="handleSubmit(this)">
         <div style="display:flex;flex-direction:column;gap:16px">
 
             <!-- Nome -->
@@ -413,13 +486,26 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn-submit">{{ btn_text }} →</button>
+            <button type="submit" class="btn-submit" id="submit-btn">
+                <span id="submit-label">{{ btn_text }} →</span>
+                <span id="submit-spinner" style="display:none">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="animation:spin 1s linear infinite;vertical-align:middle">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="50" stroke-linecap="round" opacity=".3"></circle>
+                        <path d="M12 2 a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path>
+                    </svg>
+                    Acessando...
+                </span>
+            </button>
         </div>
     </form>
 
-    <p style="text-align:center;font-family:'Lato',sans-serif;font-size:10px;color:var(--text-muted);margin-top:14px">
-        Seus dados estão protegidos 🔒
-    </p>
+</div>
+
+<!-- Trust signals -->
+<div class="trust-row">
+    <span class="trust-item">🔒 <strong>Dados protegidos</strong></span>
+    <span class="trust-item">⚡ <strong>Acesso imediato</strong></span>
+    <span class="trust-item">🎬 <strong>Aula 100% gratuita</strong></span>
 </div>
 
 {% endif %}
@@ -427,6 +513,23 @@
 </div>
 
 <script>
+// ── Submit com loading state ──────────────────────────────────────────────
+function handleSubmit(form) {
+    const btn = document.getElementById('submit-btn');
+    const label = document.getElementById('submit-label');
+    const spinner = document.getElementById('submit-spinner');
+    if (btn && label && spinner) {
+        btn.disabled = true;
+        btn.style.opacity = '.8';
+        label.style.display = 'none';
+        spinner.style.display = 'inline-flex';
+        spinner.style.alignItems = 'center';
+        spinner.style.gap = '8px';
+        spinner.style.justifyContent = 'center';
+    }
+    return true;
+}
+
 // ── DDI ativo (usado pela máscara) ────────────────────────────────────────
 var activeDDI = '+55';
 

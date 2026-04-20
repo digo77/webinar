@@ -280,11 +280,10 @@ async function generateFromText() {
     formData.append('transcript_text', transcript);
     formData.append('product_context', context);
 
-    setLoading(true, 'Analisando transcrição...', 'O Claude está lendo o conteúdo e sugerindo mensagens');
+    setLoading(true, 'Analisando transcrição...', 'Pode levar 1-3 minutos com transcrições grandes. Não feche a aba.');
     try {
-        const resp = await fetch(`/admin/ai-timeline/${WEBINAR_ID}`, { method: 'POST', body: formData });
-        const data = await resp.json();
-        if (!resp.ok || data.error) throw new Error(data.error || 'Erro desconhecido');
+        const data = await postJsonSafe(`/admin/ai-timeline/${WEBINAR_ID}`, formData);
+        if (data.error) throw new Error(data.error);
         allSuggestions = data.suggestions || [];
         renderSuggestions(allSuggestions, data.segments_count);
     } catch(err) {
@@ -305,20 +304,40 @@ async function generateFromAudio() {
     formData.append('audio_file', file);
     formData.append('product_context', context);
 
-    setLoading(true, 'Transcrevendo áudio...', 'Enviando para o Whisper — pode levar alguns minutos');
+    setLoading(true, 'Transcrevendo áudio...', 'Whisper + Claude — pode levar até 5 minutos. Não feche a aba.');
     try {
-        const resp = await fetch(`/admin/ai-timeline/${WEBINAR_ID}`, { method: 'POST', body: formData });
-
-        document.getElementById('loading-status').textContent = 'Gerando sugestões com Claude...';
-
-        const data = await resp.json();
-        if (!resp.ok || data.error) throw new Error(data.error || 'Erro desconhecido');
+        const data = await postJsonSafe(`/admin/ai-timeline/${WEBINAR_ID}`, formData);
+        if (data.error) throw new Error(data.error);
         allSuggestions = data.suggestions || [];
         renderSuggestions(allSuggestions, data.segments_count);
     } catch(err) {
         showError(err.message);
     } finally {
         setLoading(false);
+    }
+}
+
+// ── Fetch JSON robusto: trata HTML (502/504 do reverse proxy) com mensagem clara ──
+async function postJsonSafe(url, formData) {
+    let resp;
+    try {
+        resp = await fetch(url, { method: 'POST', body: formData });
+    } catch (networkErr) {
+        throw new Error('Conexão interrompida. Verifique sua internet e tente de novo (transcrições grandes podem demorar vários minutos).');
+    }
+    const ctype = (resp.headers.get('content-type') || '').toLowerCase();
+    const text = await resp.text();
+    if (!ctype.includes('application/json')) {
+        // Servidor devolveu HTML — timeout do worker, erro 502/504, etc.
+        if (resp.status === 504 || resp.status === 502 || resp.status === 503) {
+            throw new Error('O servidor demorou demais pra responder. Transcrição muito grande? Tente dividir em partes menores (ex: 200 linhas por vez).');
+        }
+        throw new Error(`Resposta inesperada do servidor (HTTP ${resp.status}). Tente de novo em alguns segundos.`);
+    }
+    try {
+        return JSON.parse(text);
+    } catch (e) {
+        throw new Error('Resposta inválida do servidor. Veja o console do navegador.');
     }
 }
 
