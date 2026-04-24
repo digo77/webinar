@@ -663,53 +663,6 @@ def chat_reply(chat_id):
 # Disparo em lote de WhatsApp via SendFlow
 # ---------------------------------------------------------------------------
 
-@admin_bp.route('/webinar/<int:webinar_id>/bulk-whatsapp', methods=['POST'])
-@login_required
-def bulk_whatsapp(webinar_id):
-    from services.notifier import notify_sendflow
-    webinar = WebinarConfig.query.get_or_404(webinar_id)
-
-    data = request.get_json(silent=True) or {}
-    template = (data.get('template')
-                or "Oi {first_name}! Sua aula ao vivo começa em instantes. Acesse pelo link: {link}").strip()
-    only_today = bool(data.get('only_today', False))
-
-    if not webinar.slug:
-        return jsonify({'error': 'Webinário sem slug. Defina um slug antes de enviar.'}), 400
-
-    base = request.host_url.rstrip('/') + url_for('registrar.register') + f'?w={webinar.slug}'
-
-    q = Registrant.query.filter(
-        Registrant.webinar_id == webinar_id,
-        Registrant.phone_number.isnot(None),
-        Registrant.phone_number != '',
-    )
-    if only_today:
-        today = datetime.now(BRT).date()
-        q = q.filter(
-            db.func.date(Registrant.webinar_date) == today
-        )
-
-    sent = 0
-    failed = 0
-    skipped = 0
-    for r in q.all():
-        phone = (r.phone_country_code or '+55').replace('+', '') + (r.phone_number or '').replace(' ', '').replace('(', '').replace(')', '').replace('-', '')
-        if len(phone) < 10:
-            skipped += 1
-            continue
-        first_name = (r.name or '').split()[0] if r.name else ''
-        # Link personalizado: auto-login via &phone= (se o registrant existe, pula o form)
-        personal_link = f'{base}&phone={phone}'
-        message = template.replace('{first_name}', first_name).replace('{name}', r.name or '').replace('{link}', personal_link)
-        ok = notify_sendflow(phone, message)
-        if ok:
-            sent += 1
-        else:
-            failed += 1
-
-    return jsonify({'ok': True, 'sent': sent, 'failed': failed, 'skipped': skipped, 'link': base})
-
 
 def _estimate_video_second(webinar_id):
     """Estima o segundo atual do vídeo com base no horário da sessão mais recente."""

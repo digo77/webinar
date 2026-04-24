@@ -133,30 +133,6 @@
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════ -->
-    <!-- DISPARO EM LOTE DE WHATSAPP -->
-    <!-- ══════════════════════════════════════════════════════════════ -->
-    <div class="adm-card" style="background:linear-gradient(135deg, rgba(34,197,94,.04), rgba(34,197,94,.01));border-color:rgba(34,197,94,.2)">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
-            <div style="flex:1;min-width:240px">
-                <p class="adm-section-title" style="margin-bottom:8px;border-bottom:none;color:#16a34a">📲 Enviar link da sala via WhatsApp</p>
-                <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Dispara o link de acesso pra todos os registrados com telefone via SendFlow.</p>
-                <div style="margin-bottom:10px">
-                    <label class="adm-label">Mensagem <span style="color:var(--text-muted);font-weight:400">(use {first_name} e {link})</span></label>
-                    <textarea id="bulk-template" class="adm-input" rows="3" style="resize:vertical">Oi {first_name}! Sua aula ao vivo começa em instantes. Acesse agora: {link}</textarea>
-                </div>
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text-secondary);margin-bottom:10px">
-                    <input type="checkbox" id="bulk-only-today" style="width:16px;height:16px;accent-color:var(--accent-gold)">
-                    Enviar só para quem tem webinar agendado pra hoje
-                </label>
-                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                    <button type="button" id="bulk-send-btn" class="adm-btn" style="background:#16a34a;color:#fff;padding:10px 20px" onclick="sendBulkWhatsApp()">Enviar agora</button>
-                    <span id="bulk-status" style="font-size:12px;color:var(--text-muted)"></span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ══════════════════════════════════════════════════════════════ -->
     <!-- CONFIGURAÇÃO (abas) -->
     <!-- ══════════════════════════════════════════════════════════════ -->
     <div class="adm-card">
@@ -669,38 +645,6 @@ function showTab(name) {
     event.currentTarget.classList.add('active');
 }
 
-// ── Disparo em lote de WhatsApp ──────────────────────────────────────────
-async function sendBulkWhatsApp() {
-    const btn = document.getElementById('bulk-send-btn');
-    const status = document.getElementById('bulk-status');
-    const template = document.getElementById('bulk-template').value.trim();
-    const onlyToday = document.getElementById('bulk-only-today').checked;
-    if (!template) { alert('Escreva uma mensagem.'); return; }
-    if (!confirm('Disparar WhatsApp agora para todos os registrados com telefone?')) return;
-    btn.disabled = true;
-    btn.textContent = 'Enviando...';
-    status.textContent = '';
-    try {
-        const resp = await fetch(`{{ url_for('admin.bulk_whatsapp', webinar_id=webinar.id) }}`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ template, only_today: onlyToday })
-        });
-        const data = await resp.json();
-        if (data.ok) {
-            status.innerHTML = `<span style="color:#16a34a;font-weight:700">✓ Enviados: ${data.sent}</span>` +
-                (data.failed ? ` · <span style="color:#dc2626">Falhou: ${data.failed}</span>` : '') +
-                (data.skipped ? ` · <span style="color:var(--text-muted)">Pulados: ${data.skipped}</span>` : '');
-        } else {
-            status.innerHTML = `<span style="color:#dc2626">Erro: ${data.error || 'desconhecido'}</span>`;
-        }
-    } catch (e) {
-        status.innerHTML = `<span style="color:#dc2626">Erro: ${e}</span>`;
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Enviar agora';
-    }
-}
 
 // ── Toggle campos timeline ────────────────────────────────────────────────
 function toggleFields() {
