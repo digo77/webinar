@@ -2,7 +2,7 @@ from flask import (Blueprint, redirect, render_template,
                    request, session, url_for)
 
 from models import Registrant, WebinarConfig, db
-from services.scheduler import get_next_webinar_date, is_webinar_open
+from services.scheduler import get_active_session_date, get_next_webinar_date, is_webinar_open
 
 registrar_bp = Blueprint('registrar', __name__)
 
@@ -73,7 +73,7 @@ def register():
             ).first()
 
         if not registrant:
-            webinar_date = get_next_webinar_date(
+            webinar_date = get_active_session_date(
                 day_of_week=webinar.day_of_week or 1,
                 start_hour=webinar.start_hour or 19,
                 start_minute=webinar.start_minute or 0,

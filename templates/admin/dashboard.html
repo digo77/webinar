@@ -194,6 +194,9 @@
                            class="nav-tag" style="background:rgba(6,182,212,.1);color:#0891b2;border:1px solid rgba(6,182,212,.2)">IA</a>
                         <a href="{{ url_for('admin.test_token', webinar_id=w.id) }}" target="_blank"
                            class="nav-tag" style="background:rgba(34,197,94,.12);color:#16a34a;border:1px solid rgba(34,197,94,.25)">▶ Testar</a>
+                        <button type="button" class="nav-tag"
+                                style="background:rgba(99,102,241,.1);color:#818cf8;border:1px solid rgba(99,102,241,.25);cursor:pointer"
+                                onclick="openDuplicateModal({{ w.id }}, '{{ w.name|replace("'","\\'")|e }}')">Duplicar</button>
                         <form method="POST" action="{{ url_for('admin.webinar_delete', webinar_id=w.id) }}" style="display:inline">
                             <button type="submit" class="nav-tag"
                                     style="background:rgba(239,68,68,.08);color:#dc2626;border:1px solid rgba(239,68,68,.2);cursor:pointer"
@@ -231,4 +234,63 @@
     </div>
 
 </div>
+
+<!-- Modal Duplicar -->
+<div id="duplicate-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:420px;margin:16px">
+        <h3 style="font-family:'Montserrat',sans-serif;font-size:16px;font-weight:800;color:var(--text-primary);margin-bottom:6px">Duplicar webinário</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px">Copia configurações, timeline e comentários aprovados. Registrados NÃO são copiados.</p>
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:5px">Nome da cópia</label>
+        <input id="dup-name" type="text" style="width:100%;background:var(--bg-elevated);border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:13px;font-family:'Inter',sans-serif;outline:none;box-sizing:border-box" oninput="this.style.borderColor='var(--accent-gold)'">
+        <div style="display:flex;gap:10px;margin-top:20px">
+            <button onclick="closeDuplicateModal()" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:13px;font-weight:700;color:var(--text-secondary);cursor:pointer;font-family:'Inter',sans-serif">Cancelar</button>
+            <button id="dup-confirm-btn" onclick="confirmDuplicate()" style="flex:2;background:linear-gradient(135deg,#6366f1,#818cf8);border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;font-family:'Inter',sans-serif">Criar cópia</button>
+        </div>
+        <p id="dup-status" style="margin-top:10px;font-size:12px;text-align:center;color:var(--text-muted)"></p>
+    </div>
+</div>
+
+<script>
+let _dupWebinarId = null;
+function openDuplicateModal(id, name) {
+    _dupWebinarId = id;
+    document.getElementById('dup-name').value = name + ' (cópia)';
+    const m = document.getElementById('duplicate-modal');
+    m.style.display = 'flex';
+    setTimeout(() => document.getElementById('dup-name').focus(), 50);
+}
+function closeDuplicateModal() {
+    document.getElementById('duplicate-modal').style.display = 'none';
+    document.getElementById('dup-status').textContent = '';
+    _dupWebinarId = null;
+}
+async function confirmDuplicate() {
+    if (!_dupWebinarId) return;
+    const name = document.getElementById('dup-name').value.trim();
+    if (!name) { alert('Digite um nome.'); return; }
+    const btn = document.getElementById('dup-confirm-btn');
+    const status = document.getElementById('dup-status');
+    btn.disabled = true; btn.textContent = 'Criando...';
+    try {
+        const resp = await fetch('/admin/webinar/' + _dupWebinarId + '/duplicate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            window.location.href = '/admin/webinar/' + data.webinar_id;
+        } else {
+            status.textContent = 'Erro: ' + (data.error || 'desconhecido');
+            btn.disabled = false; btn.textContent = 'Criar cópia';
+        }
+    } catch (e) {
+        status.textContent = 'Erro: ' + e;
+        btn.disabled = false; btn.textContent = 'Criar cópia';
+    }
+}
+document.getElementById('duplicate-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeDuplicateModal();
+});
+</script>
 {% endblock %}

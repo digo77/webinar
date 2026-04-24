@@ -709,6 +709,198 @@ def bulk_whatsapp(webinar_id):
     return jsonify({'ok': True, 'sent': sent, 'failed': failed, 'skipped': skipped, 'link': base})
 
 
+# ---------------------------------------------------------------------------
+# Moderação de chat
+# ---------------------------------------------------------------------------
+
+@admin_bp.route('/api/pending-chat/<int:webinar_id>')
+@login_required
+def pending_chat(webinar_id):
+    cutoff = datetime.utcnow() - timedelta(hours=12)
+    rows = db.session.query(UserChatMessage, Registrant).outerjoin(
+        Registrant, UserChatMessage.registrant_id == Registrant.id
+    ).filter(
+        UserChatMessage.webinar_id == webinar_id,
+        UserChatMessage.status == 'pending',
+        UserChatMessage.created_at >= cutoff,
+    ).order_by(UserChatMessage.created_at).all()
+    return jsonify([{
+        'id': m.id,
+        'name': r.name if r else '—',
+        'message': m.message,
+        'created_at': m.created_at.isoformat() if m.created_at else None,
+    } for m, r in rows])
+
+
+@admin_bp.route('/api/moderate-chat/<int:msg_id>', methods=['POST'])
+@login_required
+def moderate_chat(msg_id):
+    msg = UserChatMessage.query.get_or_404(msg_id)
+    data = request.get_json(silent=True) or {}
+    action = data.get('action')
+    reply = (data.get('reply') or '').strip()
+    video_ts = data.get('video_timestamp')
+    if action == 'approve':
+        msg.status = 'approved'
+        if reply:
+            msg.admin_reply = reply[:500]
+            msg.replied_at = datetime.utcnow()
+        if video_ts is not None:
+            try:
+                msg.video_timestamp = int(video_ts)
+            except (ValueError, TypeError):
+                pass
+    elif action == 'reject':
+        msg.status = 'rejected'
+    else:
+        return jsonify({'error': 'invalid action'}), 400
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@admin_bp.route('/api/pin-chat/<int:msg_id>', methods=['POST'])
+@login_required
+def pin_chat(msg_id):
+    msg = UserChatMessage.query.get_or_404(msg_id)
+    data = request.get_json(silent=True) or {}
+    pin = bool(data.get('pin', True))
+    if pin:
+        UserChatMessage.query.filter_by(webinar_id=msg.webinar_id, is_pinned=True).update({'is_pinned': False})
+        msg.is_pinned = True
+    else:
+        msg.is_pinned = False
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@admin_bp.route('/api/create-pinned/<int:webinar_id>', methods=['POST'])
+@login_required
+def create_pinned(webinar_id):
+    WebinarConfig.query.get_or_404(webinar_id)
+    data = request.get_json(silent=True) or {}
+    message = (data.get('message') or '').strip()
+    if not message:
+        return jsonify({'error': 'empty'}), 400
+    UserChatMessage.query.filter_by(webinar_id=webinar_id, is_pinned=True).update({'is_pinned': False})
+    msg = UserChatMessage(
+        registrant_id=None,
+        webinar_id=webinar_id,
+        message=message,
+        status='approved',
+        is_pinned=True,
+    )
+    db.session.add(msg)
+    db.session.commit()
+    return jsonify({'ok': True, 'id': msg.id})
+
+
+# ---------------------------------------------------------------------------
+# Exportar comentários
+# ---------------------------------------------------------------------------
+
+@admin_bp.route('/webinar/<int:webinar_id>/export-comments')
+@login_required
+def export_comments(webinar_id):
+    import csv
+    import io
+    from datetime import date
+    from flask import make_response
+    webinar = WebinarConfig.query.get_or_404(webinar_id)
+    fmt = request.args.get('format', 'csv')
+    filter_by = request.args.get('filter', 'all')
+    q = db.session.query(UserChatMessage, Registrant).outerjoin(
+        Registrant, UserChatMessage.registrant_id == Registrant.id
+    ).filter(UserChatMessage.webinar_id == webinar_id)
+    if filter_by == 'approved':
+        q = q.filter(UserChatMessage.status == 'approved')
+    elif filter_by == 'approved_with_reply':
+        q = q.filter(UserChatMessage.status == 'approved', UserChatMessage.admin_reply.isnot(None))
+    rows = q.order_by(UserChatMessage.created_at).all()
+    slug = webinar.slug or str(webinar_id)
+    today = date.today().isoformat()
+    if fmt == 'json':
+        data = [{
+            'user_name': r.name if r else '',
+            'user_email': r.email if r else '',
+            'comment': m.message or '',
+            'status': m.status or '',
+            'admin_reply': m.admin_reply or '',
+            'video_timestamp': m.video_timestamp,
+            'created_at': m.created_at.isoformat() if m.created_at else '',
+        } for m, r in rows]
+        resp = make_response(json.dumps(data, ensure_ascii=False, indent=2))
+        resp.headers['Content-Type'] = 'application/json; charset=utf-8'
+        resp.headers['Content-Disposition'] = f'attachment; filename="comentarios-{slug}-{today}.json"'
+        return resp
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['user_name', 'user_email', 'comment', 'status', 'admin_reply', 'video_timestamp', 'created_at'])
+    for m, r in rows:
+        writer.writerow([
+            r.name if r else '',
+            r.email if r else '',
+            m.message or '',
+            m.status or '',
+            m.admin_reply or '',
+            m.video_timestamp or '',
+            m.created_at.isoformat() if m.created_at else '',
+        ])
+    output.seek(0)
+    resp = make_response('\ufeff' + output.getvalue())
+    resp.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    resp.headers['Content-Disposition'] = f'attachment; filename="comentarios-{slug}-{today}.csv"'
+    return resp
+
+
+# ---------------------------------------------------------------------------
+# Duplicar webinário
+# ---------------------------------------------------------------------------
+
+@admin_bp.route('/webinar/<int:webinar_id>/duplicate', methods=['POST'])
+@login_required
+def webinar_duplicate(webinar_id):
+    src = WebinarConfig.query.get_or_404(webinar_id)
+    data = request.get_json(silent=True) or {}
+    new_name = (data.get('name') or (src.name or '') + ' (cópia)').strip()
+    base = src.slug or 'webinar'
+    candidate = base + '-2'
+    counter = 2
+    while WebinarConfig.query.filter_by(slug=candidate).first():
+        counter += 1
+        candidate = base + '-' + str(counter)
+    new_w = WebinarConfig(
+        name=new_name, client_name=src.client_name,
+        webhook_token=secrets.token_urlsafe(16),
+        vturb_video_id=src.vturb_video_id, is_active=False,
+        day_of_week=src.day_of_week, start_hour=src.start_hour, start_minute=src.start_minute,
+        attendee_count_base=src.attendee_count_base,
+        upsell_url=src.upsell_url, upsell_cta_text=src.upsell_cta_text,
+        pitch_second=src.pitch_second, offer_image_url=src.offer_image_url,
+        offer_original_price=src.offer_original_price, offer_price=src.offer_price,
+        chatbot_responses=src.chatbot_responses,
+        register_mode=src.register_mode, register_headline=src.register_headline,
+        register_subtitle=src.register_subtitle, register_bg_color=src.register_bg_color,
+        register_bg_image_url=src.register_bg_image_url,
+        register_presenter_photo_url=src.register_presenter_photo_url,
+        register_bullets=src.register_bullets, register_button_text=src.register_button_text,
+        slug=candidate,
+    )
+    db.session.add(new_w)
+    db.session.flush()
+    for e in TimelineEvent.query.filter_by(webinar_id=webinar_id).all():
+        db.session.add(TimelineEvent(
+            webinar_id=new_w.id, trigger_second=e.trigger_second,
+            event_type=e.event_type, payload=e.payload,
+        ))
+    for m in UserChatMessage.query.filter_by(webinar_id=webinar_id, status='approved').all():
+        db.session.add(UserChatMessage(
+            webinar_id=new_w.id, registrant_id=m.registrant_id,
+            message=m.message, status='simulated', video_timestamp=m.video_timestamp,
+        ))
+    db.session.commit()
+    return jsonify({'ok': True, 'webinar_id': new_w.id})
+
+
 @admin_bp.route('/ai-timeline/<int:webinar_id>/import', methods=['POST'])
 @login_required
 def ai_timeline_import(webinar_id):

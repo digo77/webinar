@@ -100,4 +100,7 @@ class UserChatMessage(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     admin_reply = db.Column(db.Text)
     replied_at = db.Column(db.DateTime)
+    status = db.Column(db.Text, default='pending')  # pending | approved | rejected | simulated
+    video_timestamp = db.Column(db.Integer, nullable=True)
+    is_pinned = db.Column(db.Boolean, default=False)
     registrant = db.relationship('Registrant', backref='user_chat')

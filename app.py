@@ -52,6 +52,17 @@ def migrate_db(app):
             if col not in r_cols:
                 db.session.execute(text(f'ALTER TABLE registrants ADD COLUMN {col} {typedef}'))
 
+        # user_chat_messages novas colunas
+        ucm_cols = {c['name'] for c in inspector.get_columns('user_chat_messages')}
+        ucm_new = {
+            'status': "TEXT DEFAULT 'approved'",
+            'video_timestamp': 'INTEGER',
+            'is_pinned': 'INTEGER DEFAULT 0',
+        }
+        for col, typedef in ucm_new.items():
+            if col not in ucm_cols:
+                db.session.execute(text(f'ALTER TABLE user_chat_messages ADD COLUMN {col} {typedef}'))
+
         db.session.commit()
 
 
@@ -88,4 +99,4 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True)

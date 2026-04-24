@@ -63,6 +63,7 @@
             this.Tracking.init();
             this.Presence.start();
             this.MyChat.start();
+            this.PublicChat.start();
             switchTab('chat');
             // Pre-popula chat com mensagens de aquecimento + background contínuo
             this.PreloadChat.run();
@@ -596,6 +597,58 @@
                 const self = this;
                 setInterval(function () { self.poll(); }, 10000);
                 setTimeout(function () { self.poll(); }, 3000);
+            }
+        },
+
+        // ── Public Chat (mensagens aprovadas pelo admin) ──────────────────────
+        PublicChat: {
+            lastId: 0,
+            pinnedId: null,
+            async poll() {
+                try {
+                    const wid = window.WEBINAR_ID || '';
+                    const resp = await fetch('/api/public-chat?webinar_id=' + wid + '&since_id=' + this.lastId);
+                    const data = await resp.json();
+                    // Novas mensagens aprovadas
+                    for (const m of (data.messages || [])) {
+                        if (m.id > this.lastId) this.lastId = m.id;
+                        WebinarEngine.Chat.addMessage(m.name || 'Participante', m.message || '', false);
+                        if (m.admin_reply) {
+                            setTimeout(function() {
+                                WebinarEngine.Chat.addAdminReply(m.admin_reply);
+                            }, 800);
+                        }
+                    }
+                    // Comentário fixado
+                    const pinned = data.pinned;
+                    if (pinned && pinned.id !== this.pinnedId) {
+                        this.pinnedId = pinned.id;
+                        this._showPinned(pinned);
+                    } else if (!pinned && this.pinnedId) {
+                        this.pinnedId = null;
+                        const el = document.getElementById('chat-pinned-banner');
+                        if (el) el.remove();
+                    }
+                } catch(e) {}
+            },
+            _showPinned(pinned) {
+                const box = document.getElementById('chat-box');
+                if (!box) return;
+                let el = document.getElementById('chat-pinned-banner');
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = 'chat-pinned-banner';
+                    el.style.cssText = 'position:sticky;top:0;z-index:10;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-family:Lato,sans-serif;font-size:12px;color:var(--text-primary);line-height:1.4';
+                    box.parentNode.insertBefore(el, box);
+                }
+                const esc = function(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+                el.innerHTML = '<span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--accent-gold);display:block;margin-bottom:2px">📌 Mensagem fixada</span>' + esc(pinned.message);
+            },
+            start() {
+                if (window.WEBINAR_PREVIEW) return;
+                const self = this;
+                setTimeout(function() { self.poll(); }, 2000);
+                setInterval(function() { self.poll(); }, 4000);
             }
         },
 

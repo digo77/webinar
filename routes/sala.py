@@ -260,6 +260,44 @@ def user_chat_post():
     return jsonify({'ok': True, 'id': msg.id, 'created_at': msg.created_at.isoformat()})
 
 
+@sala_bp.route('/api/public-chat')
+def public_chat():
+    """Feed público de mensagens aprovadas pelo admin. Inclui comentário fixado."""
+    webinar_id = request.args.get('webinar_id') or session.get('webinar_id')
+    since_id = int(request.args.get('since_id', 0) or 0)
+    if not webinar_id:
+        return jsonify({'messages': [], 'pinned': None})
+    wid = int(webinar_id)
+    cutoff = datetime.utcnow() - timedelta(hours=12)
+    rows = db.session.query(UserChatMessage, Registrant).outerjoin(
+        Registrant, UserChatMessage.registrant_id == Registrant.id
+    ).filter(
+        UserChatMessage.webinar_id == wid,
+        UserChatMessage.status == 'approved',
+        UserChatMessage.id > since_id,
+        UserChatMessage.created_at >= cutoff,
+    ).order_by(UserChatMessage.created_at).limit(50).all()
+    pinned_row = db.session.query(UserChatMessage, Registrant).outerjoin(
+        Registrant, UserChatMessage.registrant_id == Registrant.id
+    ).filter(
+        UserChatMessage.webinar_id == wid,
+        UserChatMessage.is_pinned == True,
+    ).first()
+    pinned = None
+    if pinned_row:
+        pm, pr = pinned_row
+        pinned = {'id': pm.id, 'name': pr.name if pr else 'Admin', 'message': pm.message}
+    return jsonify({
+        'messages': [{
+            'id': m.id,
+            'name': r.name if r else 'Participante',
+            'message': m.message,
+            'admin_reply': m.admin_reply,
+        } for m, r in rows],
+        'pinned': pinned,
+    })
+
+
 @sala_bp.route('/api/my-chat')
 def my_chat():
     """Retorna as mensagens do próprio usuário (com respostas do admin, se houver)."""

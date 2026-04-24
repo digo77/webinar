@@ -61,6 +61,7 @@
                class="nav-link" style="background:rgba(6,182,212,.12);color:#22d3ee;border:1px solid rgba(6,182,212,.25)">IA Timeline</a>
             <a href="{{ url_for('admin.support_messages', webinar_id=webinar.id) }}"
                class="nav-link" style="background:rgba(34,197,94,.12);color:#4ade80;border:1px solid rgba(34,197,94,.25)">Suporte</a>
+            <button onclick="openExportModal()" class="nav-link" style="background:rgba(99,102,241,.1);color:#818cf8;border:1px solid rgba(99,102,241,.25);cursor:pointer">📤 Comentários</button>
             <a href="{{ url_for('admin.test_token', webinar_id=webinar.id) }}" target="_blank"
                class="nav-link" style="background:linear-gradient(135deg,var(--accent-gold),var(--accent-gold-light));color:#0a0a0f">▶ Testar Sala</a>
         </div>
@@ -549,6 +550,55 @@
         </form>
     </div>
 
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- MODERAÇÃO DE CHAT -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="adm-card" style="margin-top:20px">
+        <p class="adm-section-title">💬 Moderação de Chat</p>
+
+        <!-- Comentário fixado -->
+        <div style="margin-bottom:20px;padding:16px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:10px">
+            <p style="font-size:12px;font-weight:700;color:var(--accent-gold);margin-bottom:10px">📌 Comentário fixado</p>
+            <div id="pinned-preview" style="display:none;background:var(--bg-elevated);border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:13px;color:var(--text-primary);font-family:'Lato',sans-serif"></div>
+            <div style="display:flex;gap:8px">
+                <input id="pinned-input" type="text" class="adm-input" placeholder="Escreva uma mensagem para fixar no topo do chat..." style="flex:1">
+                <button onclick="createPinned()" class="adm-btn adm-btn-gold" style="flex-shrink:0">Fixar</button>
+            </div>
+        </div>
+
+        <!-- Fila de pendentes -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <p style="font-size:13px;font-weight:700;color:var(--text-primary)">Fila de aprovação <span id="pending-count" style="font-size:11px;background:rgba(239,68,68,.15);color:#f87171;border-radius:20px;padding:1px 8px;margin-left:4px">0</span></p>
+            <span style="font-size:11px;color:var(--text-muted)">Atualiza a cada 4s</span>
+        </div>
+        <div id="pending-queue" style="display:flex;flex-direction:column;gap:8px">
+            <p style="text-align:center;color:var(--text-muted);font-size:13px;padding:24px 0" id="pending-empty">Nenhuma mensagem pendente.</p>
+        </div>
+    </div>
+
+</div>
+
+<!-- Modal Exportar Comentários -->
+<div id="export-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:420px;margin:16px">
+        <h3 style="font-family:'Montserrat',sans-serif;font-size:16px;font-weight:800;color:var(--text-primary);margin-bottom:6px">Exportar comentários</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px">Exporta comentários reais enviados pelos participantes.</p>
+        <label class="adm-label">Filtro</label>
+        <select id="exp-filter" class="adm-input adm-select" style="margin-bottom:14px">
+            <option value="all">Todos</option>
+            <option value="approved">Apenas aprovados</option>
+            <option value="approved_with_reply">Aprovados com resposta</option>
+        </select>
+        <label class="adm-label">Formato</label>
+        <select id="exp-format" class="adm-input adm-select" style="margin-bottom:20px">
+            <option value="csv">CSV (Excel)</option>
+            <option value="json">JSON</option>
+        </select>
+        <div style="display:flex;gap:10px">
+            <button onclick="closeExportModal()" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:13px;font-weight:700;color:var(--text-secondary);cursor:pointer;font-family:'Inter',sans-serif">Cancelar</button>
+            <button onclick="doExport()" style="flex:2;background:linear-gradient(135deg,#6366f1,#818cf8);border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;font-family:'Inter',sans-serif">Exportar</button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -626,5 +676,123 @@ function toggleFields() {
     document.getElementById('fields-cta').style.display = type === 'cta_popup' ? 'grid' : 'none';
     document.getElementById('fields-poll').style.display = type === 'poll' ? 'grid' : 'none';
 }
+
+// ── Moderação de chat ─────────────────────────────────────────────────────
+const WEBINAR_ID_MOD = {{ webinar.id }};
+
+async function pollPending() {
+    try {
+        const resp = await fetch('/admin/api/pending-chat/' + WEBINAR_ID_MOD);
+        const msgs = await resp.json();
+        const queue = document.getElementById('pending-queue');
+        const empty = document.getElementById('pending-empty');
+        const counter = document.getElementById('pending-count');
+        counter.textContent = msgs.length;
+        const existing = new Set([...queue.querySelectorAll('[data-msg-id]')].map(el => el.dataset.msgId));
+        msgs.forEach(function(m) {
+            if (existing.has(String(m.id))) return;
+            const card = document.createElement('div');
+            card.dataset.msgId = m.id;
+            card.style.cssText = 'background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px';
+            card.innerHTML = `
+                <div>
+                    <span style="font-family:'Montserrat',sans-serif;font-size:12px;font-weight:700;color:var(--accent-gold)">${escHtml(m.name)}</span>
+                    <span style="font-size:11px;color:var(--text-muted);margin-left:8px">${new Date(m.created_at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span>
+                    <p style="font-family:'Lato',sans-serif;font-size:13px;color:var(--text-primary);margin:4px 0 0;line-height:1.4">${escHtml(m.message)}</p>
+                </div>
+                <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap">
+                    <input type="text" placeholder="Resposta do admin (opcional)" data-reply-id="${m.id}"
+                        style="flex:1;min-width:160px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:7px;padding:7px 10px;color:var(--text-primary);font-size:12px;font-family:'Lato',sans-serif;outline:none">
+                    <button onclick="moderateChat(${m.id},'approve',this)" style="background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:#4ade80;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif">✓ Aprovar</button>
+                    <button onclick="moderateChat(${m.id},'reject',this)" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#f87171;border-radius:7px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif">✕ Rejeitar</button>
+                    <button onclick="pinChat(${m.id},this)" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);color:var(--accent-gold);border-radius:7px;padding:7px 12px;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif" title="Fixar no topo do chat">📌</button>
+                </div>`;
+            queue.appendChild(card);
+        });
+        // Remove cards que não estão mais na lista
+        [...queue.querySelectorAll('[data-msg-id]')].forEach(function(el) {
+            if (!msgs.find(m => String(m.id) === el.dataset.msgId)) el.remove();
+        });
+        empty.style.display = msgs.length ? 'none' : 'block';
+    } catch(e) {}
+}
+
+function escHtml(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function moderateChat(msgId, action, btn) {
+    const card = btn.closest('[data-msg-id]');
+    const replyInput = card.querySelector('[data-reply-id]');
+    const reply = replyInput ? replyInput.value.trim() : '';
+    btn.disabled = true; btn.textContent = '…';
+    try {
+        await fetch('/admin/api/moderate-chat/' + msgId, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({action, reply: reply || undefined})
+        });
+        card.style.transition = 'opacity .2s'; card.style.opacity = '0';
+        setTimeout(() => card.remove(), 200);
+    } catch(e) { btn.disabled = false; }
+}
+
+async function pinChat(msgId, btn) {
+    btn.disabled = true;
+    try {
+        await fetch('/admin/api/pin-chat/' + msgId, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({pin: true})
+        });
+        const card = btn.closest('[data-msg-id]');
+        const msg = card.querySelector('p') ? card.querySelector('p').textContent : '';
+        const preview = document.getElementById('pinned-preview');
+        preview.textContent = '📌 ' + msg;
+        preview.style.display = 'block';
+        btn.disabled = false;
+    } catch(e) { btn.disabled = false; }
+}
+
+async function createPinned() {
+    const input = document.getElementById('pinned-input');
+    const message = input.value.trim();
+    if (!message) return;
+    try {
+        const resp = await fetch('/admin/api/create-pinned/' + WEBINAR_ID_MOD, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({message})
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            const preview = document.getElementById('pinned-preview');
+            preview.textContent = '📌 ' + message;
+            preview.style.display = 'block';
+            input.value = '';
+        }
+    } catch(e) {}
+}
+
+// ── Export modal ──────────────────────────────────────────────────────────
+function openExportModal() {
+    document.getElementById('export-modal').style.display = 'flex';
+}
+function closeExportModal() {
+    document.getElementById('export-modal').style.display = 'none';
+}
+function doExport() {
+    const filter = document.getElementById('exp-filter').value;
+    const format = document.getElementById('exp-format').value;
+    window.location.href = '/admin/webinar/{{ webinar.id }}/export-comments?filter=' + filter + '&format=' + format;
+    closeExportModal();
+}
+document.getElementById('export-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeExportModal();
+});
+
+// Inicia polling de moderação
+pollPending();
+setInterval(pollPending, 4000);
 </script>
 {% endblock %}

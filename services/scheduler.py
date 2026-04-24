@@ -35,6 +35,21 @@ def get_next_webinar_date(day_of_week=1, start_hour=19, start_minute=0, from_dt=
     return next_date
 
 
+def get_active_session_date(day_of_week=1, start_hour=19, start_minute=0):
+    """Retorna a sessão atual se estiver dentro de 30 min após o início, senão a próxima."""
+    now = datetime.now(BRT)
+    days_back = (now.weekday() - day_of_week) % 7
+    prev_date = (now - timedelta(days=days_back)).replace(
+        hour=start_hour, minute=start_minute, second=0, microsecond=0
+    )
+    if prev_date > now:
+        prev_date -= timedelta(days=7)
+    elapsed = (now - prev_date).total_seconds()
+    if 0 <= elapsed <= 30 * 60:
+        return prev_date
+    return get_next_webinar_date(day_of_week, start_hour, start_minute)
+
+
 # Alias retrocompativel
 def get_next_tuesday_19h(from_dt=None):
     return get_next_webinar_date(day_of_week=1, start_hour=19, start_minute=0, from_dt=from_dt)
