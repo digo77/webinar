@@ -214,8 +214,13 @@
                         <p style="font-size:11px;color:var(--text-muted);margin-top:4px">ex: 1800 = 30 min · 0 = desativado</p>
                     </div>
                     <div>
-                        <label class="adm-label">Data de Teste <span style="color:var(--text-muted);font-weight:400">(deixe vazio para agora −20 min)</span></label>
+                        <label class="adm-label">Data de Teste</label>
                         <input class="adm-input" type="datetime-local" name="test_date" value="{{ webinar.test_date or '' }}">
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.5">
+                            <strong style="color:var(--text-secondary)">Vazio</strong> → sala já aberta (simula 20 min de aula) &nbsp;·&nbsp;
+                            <strong style="color:var(--text-secondary)">Data futura</strong> → mostra tela de espera com countdown &nbsp;·&nbsp;
+                            <strong style="color:var(--text-secondary)">Data passada</strong> → sala aberta naquele momento
+                        </p>
                     </div>
                 </div>
                 <!-- Modo Just in Time -->
