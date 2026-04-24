@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
 from models import LivePresence, Registrant, TimelineEvent, UserChatMessage, WebinarConfig, db
 from services.scheduler import BRT, is_webinar_open
