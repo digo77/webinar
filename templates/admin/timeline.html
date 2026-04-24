@@ -73,6 +73,7 @@
                     <label class="adm-label">Tipo</label>
                     <select name="event_type" id="event-type" onchange="toggleFields()" class="adm-input adm-select">
                         <option value="chat">💬 Chat</option>
+                        <option value="pin_message">📌 Fixar mensagem</option>
                         <option value="cta_popup">🛒 CTA Popup</option>
                         <option value="poll">📊 Poll</option>
                         <option value="end_broadcast">🎬 Encerramento</option>
@@ -115,6 +116,18 @@
                 <div>
                     <label class="adm-label">URL do botão (opcional)</label>
                     <input type="text" name="url" id="f-url" placeholder="https://..." class="adm-input">
+                </div>
+            </div>
+
+            <!-- Campos Pin -->
+            <div id="fields-pin" class="grid-2" style="display:none;margin-bottom:8px">
+                <div>
+                    <label class="adm-label">Mensagem fixada</label>
+                    <input type="text" name="pin_message_text" id="f-pin-message" placeholder="ex: 📄 PDF com receitas na área de membros da Hotmart!" class="adm-input">
+                </div>
+                <div>
+                    <label class="adm-label">Duração (segundos · 0 = permanente)</label>
+                    <input type="number" name="pin_duration" id="f-pin-duration" value="120" min="0" class="adm-input">
                 </div>
             </div>
 
@@ -244,6 +257,7 @@ const WEBINAR_ID = {{ webinar.id }};
 function toggleFields() {
     const type = document.getElementById('event-type').value;
     document.getElementById('fields-chat').style.display = (type === 'chat') ? 'grid' : 'none';
+    document.getElementById('fields-pin').style.display = (type === 'pin_message') ? 'grid' : 'none';
     document.getElementById('fields-cta').style.display = (type === 'cta_popup') ? 'grid' : 'none';
     document.getElementById('fields-poll').style.display = (type === 'poll') ? 'grid' : 'none';
 }
@@ -269,6 +283,9 @@ function loadEdit(id, eventType, triggerSecond, payload) {
     if (eventType === 'chat') {
         document.getElementById('f-author').value = payload.author || '';
         document.getElementById('f-message').value = payload.message || '';
+    } else if (eventType === 'pin_message') {
+        document.getElementById('f-pin-message').value = payload.message || '';
+        document.getElementById('f-pin-duration').value = payload.duration ?? 120;
     } else if (eventType === 'cta_popup') {
         document.getElementById('f-title').value = payload.title || '';
         document.getElementById('f-countdown').value = payload.countdown_minutes || 20;

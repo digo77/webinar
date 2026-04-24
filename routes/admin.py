@@ -221,6 +221,11 @@ def timeline_add(webinar_id):
         options_raw = request.form.get('options', '')
         options = [o.strip() for o in options_raw.split(',') if o.strip()]
         payload = json.dumps({'question': question, 'options': options})
+    elif event_type == 'pin_message':
+        payload = json.dumps({
+            'message': request.form.get('pin_message_text', ''),
+            'duration': int(request.form.get('pin_duration', 120) or 0),
+        })
     elif event_type == 'end_broadcast':
         payload = json.dumps({})
     else:
@@ -279,6 +284,11 @@ def timeline_view(webinar_id):
                 'title': request.form.get('title', ''),
                 'countdown_minutes': int(request.form.get('countdown_minutes', 15)),
                 'url': request.form.get('url', ''),
+            })
+        elif event_type == 'pin_message':
+            payload = json.dumps({
+                'message': request.form.get('pin_message_text', ''),
+                'duration': int(request.form.get('pin_duration', 120) or 0),
             })
         elif event_type == 'poll':
             question = request.form.get('question', '')
@@ -554,6 +564,11 @@ def timeline_event_edit(webinar_id, event_id):
             'title': request.form.get('title', ''),
             'countdown_minutes': int(request.form.get('countdown_minutes', 15) or 15),
             'url': request.form.get('url', ''),
+        })
+    elif event_type == 'pin_message':
+        event.payload = json.dumps({
+            'message': request.form.get('pin_message_text', ''),
+            'duration': int(request.form.get('pin_duration', 120) or 0),
         })
     elif event_type == 'poll':
         options = [o.strip() for o in request.form.get('options', '').split(',') if o.strip()]

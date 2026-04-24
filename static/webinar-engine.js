@@ -222,6 +222,20 @@
                 case 'poll':
                     // Implementação futura
                     break;
+
+                case 'pin_message': {
+                    const banner = document.getElementById('pinned-banner');
+                    const bannerText = document.getElementById('pinned-banner-text');
+                    if (banner && bannerText) {
+                        bannerText.textContent = p.message || '';
+                        banner.style.display = 'block';
+                        const dur = parseInt(p.duration) || 0;
+                        if (dur > 0) {
+                            setTimeout(function () { banner.style.display = 'none'; }, dur * 1000);
+                        }
+                    }
+                    break;
+                }
             }
         },
 

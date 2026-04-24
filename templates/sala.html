@@ -739,6 +739,11 @@ setInterval(() => {
 
             <!-- ── Painel CHAT ──────────────────────────────────────── -->
             <div id="panel-chat" class="panel-content">
+                <!-- Banner de mensagem fixada -->
+                <div id="pinned-banner" style="display:none;background:rgba(200,130,10,.08);border-left:3px solid var(--accent-gold);padding:8px 14px;flex-shrink:0">
+                    <span style="font-size:10px;font-weight:700;color:var(--accent-gold);font-family:'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.05em">📌 Fixado</span>
+                    <p id="pinned-banner-text" style="font-size:13px;color:var(--text-primary);margin:3px 0 0;line-height:1.4"></p>
+                </div>
                 <div id="chat-box" class="chat-messages"></div>
                 <button type="button" id="chat-new-chip" class="chat-new-chip" onclick="scrollChatToBottom(true)">
                     ↓ <span id="chat-new-count">1</span> nova
