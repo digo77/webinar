@@ -734,7 +734,6 @@ setInterval(() => {
             <!-- Abas -->
             <div class="panel-tabs">
                 <button class="tab-btn active" id="tab-chat" onclick="switchTab('chat')">💬 Chat</button>
-                <button class="tab-btn" id="tab-support" onclick="switchTab('support')">🛟 Suporte</button>
                 <button class="tab-btn" id="tab-offer" onclick="switchTab('offer')" style="display:none">🔥 Oferta</button>
             </div>
 
@@ -747,25 +746,6 @@ setInterval(() => {
                 <div class="chat-input-row">
                     <input type="text" id="user-chat-input" class="chat-input" placeholder="Comente aqui...">
                     <button class="chat-send-btn" onclick="sendUserChat()" aria-label="Enviar">↑</button>
-                </div>
-            </div>
-
-            <!-- ── Painel SUPORTE ───────────────────────────────────── -->
-            <div id="panel-support" class="panel-content" style="display:none;padding:20px;gap:14px">
-                <div>
-                    <h3 style="font-family:'Montserrat',sans-serif;font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:4px">Fale com nossa equipe</h3>
-                    <p style="font-family:'Lato',sans-serif;font-size:13px;color:var(--text-secondary)">Sua mensagem será respondida em breve.</p>
-                </div>
-                <textarea id="support-input" rows="4" placeholder="Escreva sua dúvida aqui..."
-                    style="width:100%;background:var(--bg-secondary);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text-primary);font-family:'Lato',sans-serif;font-size:16px;resize:none;outline:none;transition:border-color .2s;-webkit-appearance:none"
-                    onfocus="this.style.borderColor='var(--accent-gold)'" onblur="this.style.borderColor='var(--border)'"></textarea>
-                <button onclick="sendSupport()"
-                    style="background:linear-gradient(135deg,var(--accent-gold),var(--accent-gold-light));color:#0a0a0f;border:none;border-radius:8px;padding:12px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:13px;cursor:pointer;width:100%;transition:opacity .15s"
-                    onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
-                    Enviar mensagem
-                </button>
-                <div id="support-status" style="display:none;text-align:center;color:var(--success);font-family:'Lato',sans-serif;font-size:13px;font-weight:700">
-                    ✅ Mensagem enviada! Responderemos em breve.
                 </div>
             </div>
 

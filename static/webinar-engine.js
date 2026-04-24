@@ -691,7 +691,7 @@
 
     // ── UI global ─────────────────────────────────────────────────────────────
     window.switchTab = function (tab) {
-        ['chat', 'support', 'offer'].forEach(function (t) {
+        ['chat', 'offer'].forEach(function (t) {
             const panel = document.getElementById('panel-' + t);
             const btn = document.getElementById('tab-' + t);
             if (panel) panel.style.display = (t === tab ? 'flex' : 'none');
@@ -716,24 +716,6 @@
         input.value = '';
     };
 
-    window.sendSupport = async function () {
-        const input = document.getElementById('support-input');
-        const status = document.getElementById('support-status');
-        if (!input) return;
-        const msg = input.value.trim();
-        if (!msg) return;
-        try {
-            await fetch('/api/support', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: msg })
-            });
-            input.value = '';
-            if (status) status.style.display = 'block';
-        } catch (e) {
-            console.error('[WebinarEngine] Erro ao enviar suporte:', e);
-        }
-    };
 
     window.trackCTA = function () {
         WebinarEngine.Tracking.sendCTAClick();
