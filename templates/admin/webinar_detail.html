@@ -376,11 +376,15 @@
     <!-- ══════════════════════════════════════════════════════════════ -->
     <!-- TIMELINE DE EVENTOS -->
     <!-- ══════════════════════════════════════════════════════════════ -->
-    <div class="adm-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-            <p class="adm-section-title" style="margin-bottom:0;border-bottom:none">Timeline de Eventos ({{ events|length }})</p>
-            <a href="{{ url_for('admin.timeline_view', webinar_id=webinar.id) }}" style="font-size:12px;color:var(--accent-gold);text-decoration:none">Editor visual →</a>
+    <div class="adm-card" style="padding:0;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 24px;cursor:pointer;border-bottom:1px solid transparent;transition:border-color .15s" id="timeline-header" onclick="toggleTimeline()">
+            <p class="adm-section-title" style="margin:0;border-bottom:none">Timeline de Eventos ({{ events|length }})</p>
+            <div style="display:flex;align-items:center;gap:14px">
+                <a href="{{ url_for('admin.timeline_view', webinar_id=webinar.id) }}" style="font-size:12px;color:var(--accent-gold);text-decoration:none" onclick="event.stopPropagation()">Editor visual →</a>
+                <span id="timeline-chevron" style="color:var(--text-muted);font-size:13px;transition:transform .2s;display:inline-block">▼</span>
+            </div>
         </div>
+        <div id="timeline-body" style="display:none;padding:16px 24px 24px">
 
         <!-- Adicionar evento -->
         <form method="POST" action="{{ url_for('admin.timeline_add', webinar_id=webinar.id) }}"
@@ -473,6 +477,7 @@
         {% else %}
         <p style="text-align:center;color:var(--text-muted);font-size:13px;padding:24px 0">Nenhum evento cadastrado. Adicione acima ou use o <a href="{{ url_for('admin.ai_timeline', webinar_id=webinar.id) }}" style="color:var(--accent-gold)">Gerador de IA</a>.</p>
         {% endif %}
+        </div>{# /timeline-body #}
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════ -->
@@ -645,6 +650,17 @@ function showTab(name) {
     event.currentTarget.classList.add('active');
 }
 
+
+// ── Accordion Timeline ────────────────────────────────────────────────────
+function toggleTimeline() {
+    const body = document.getElementById('timeline-body');
+    const chevron = document.getElementById('timeline-chevron');
+    const header = document.getElementById('timeline-header');
+    const open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : 'block';
+    chevron.style.transform = open ? '' : 'rotate(180deg)';
+    header.style.borderBottomColor = open ? 'transparent' : 'var(--border)';
+}
 
 // ── Toggle campos timeline ────────────────────────────────────────────────
 function toggleFields() {

@@ -395,6 +395,8 @@
                         });
                         const footer = document.getElementById('offer-footer');
                         if (footer) footer.style.display = 'none';
+                        const ps = document.querySelector('.panel-section');
+                        if (ps) ps.style.paddingBottom = '';
                         return;
                     }
                     const txt = fmtTime(remaining);
@@ -409,7 +411,14 @@
 
             showFooterCTA() {
                 const footer = document.getElementById('offer-footer');
-                if (footer) footer.style.display = 'flex';
+                if (!footer) return;
+                footer.style.display = 'flex';
+                // Empurra o painel pra cima para o footer fixo não cobrir o input de chat
+                requestAnimationFrame(function () {
+                    const h = footer.getBoundingClientRect().height;
+                    const ps = document.querySelector('.panel-section');
+                    if (ps) ps.style.paddingBottom = h + 'px';
+                });
             },
 
             showEndBroadcast() {
