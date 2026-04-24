@@ -216,6 +216,7 @@
 
                 case 'end_broadcast':
                     self.Offer.showEndBroadcast();
+                    fetch('/api/session-ended', { method: 'POST' }).catch(function () {});
                     break;
 
                 case 'poll':

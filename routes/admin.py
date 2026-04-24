@@ -171,6 +171,8 @@ def webinar_edit(webinar_id):
     webinar.register_presenter_photo_url = request.form.get('register_presenter_photo_url', webinar.register_presenter_photo_url)
     webinar.register_bullets = request.form.get('register_bullets', webinar.register_bullets)
     webinar.register_button_text = request.form.get('register_button_text', webinar.register_button_text)
+    webinar.jit_enabled = bool(request.form.get('jit_enabled'))
+    webinar.jit_delay_minutes = int(request.form.get('jit_delay_minutes', webinar.jit_delay_minutes or 15) or 15)
 
     db.session.commit()
     return redirect(url_for('admin.webinar_detail', webinar_id=webinar_id))
@@ -709,6 +711,22 @@ def bulk_whatsapp(webinar_id):
     return jsonify({'ok': True, 'sent': sent, 'failed': failed, 'skipped': skipped, 'link': base})
 
 
+def _estimate_video_second(webinar_id):
+    """Estima o segundo atual do vídeo com base no horário da sessão mais recente."""
+    webinar = WebinarConfig.query.get(webinar_id)
+    if not webinar:
+        return None
+    now = datetime.now(BRT)
+    days_back = (now.weekday() - (webinar.day_of_week or 1)) % 7
+    start = (now - timedelta(days=days_back)).replace(
+        hour=webinar.start_hour or 19, minute=webinar.start_minute or 0, second=0, microsecond=0
+    )
+    if start > now:
+        start -= timedelta(days=7)
+    elapsed = int((now - start).total_seconds())
+    return max(0, elapsed) if 0 <= elapsed <= 7200 else None
+
+
 # ---------------------------------------------------------------------------
 # Moderação de chat
 # ---------------------------------------------------------------------------
@@ -750,6 +768,8 @@ def moderate_chat(msg_id):
                 msg.video_timestamp = int(video_ts)
             except (ValueError, TypeError):
                 pass
+        else:
+            msg.video_timestamp = _estimate_video_second(msg.webinar_id)
     elif action == 'reject':
         msg.status = 'rejected'
     else:
@@ -899,6 +919,160 @@ def webinar_duplicate(webinar_id):
         ))
     db.session.commit()
     return jsonify({'ok': True, 'webinar_id': new_w.id})
+
+
+# ---------------------------------------------------------------------------
+# Gráfico de retenção
+# ---------------------------------------------------------------------------
+
+@admin_bp.route('/api/retention/<int:webinar_id>')
+@login_required
+def retention_data(webinar_id):
+    session_date = request.args.get('session_date')
+    q = Registrant.query.filter_by(webinar_id=webinar_id, attended=True)
+    if session_date:
+        try:
+            from datetime import date as dt_date
+            d = dt_date.fromisoformat(session_date)
+            q = q.filter(db.func.date(Registrant.webinar_date) == d)
+        except ValueError:
+            pass
+    regs = q.all()
+    if not regs:
+        return jsonify([])
+    max_sec = max((r.watch_time_seconds or 0) for r in regs)
+    max_min = max_sec // 60
+    result = []
+    for m in range(max_min + 1):
+        threshold = m * 60
+        count = sum(1 for r in regs if (r.watch_time_seconds or 0) >= threshold)
+        result.append({'minute': m, 'viewers': count})
+    return jsonify(result)
+
+
+@admin_bp.route('/api/session-dates/<int:webinar_id>')
+@login_required
+def session_dates(webinar_id):
+    dates = db.session.query(
+        db.func.date(Registrant.webinar_date).label('d')
+    ).filter_by(webinar_id=webinar_id, attended=True).distinct().order_by(db.text('d DESC')).all()
+    return jsonify([str(row.d) for row in dates if row.d])
+
+
+# ---------------------------------------------------------------------------
+# Lembretes WhatsApp automáticos
+# ---------------------------------------------------------------------------
+
+@admin_bp.route('/api/trigger-reminders', methods=['POST'])
+@login_required
+def trigger_reminders():
+    from services.notifier import notify_sendflow
+    from services.scheduler import get_next_webinar_date
+    now = datetime.now(BRT)
+    sent_60 = sent_10 = 0
+    webinars = WebinarConfig.query.filter_by(is_active=True).all()
+    for w in webinars:
+        if not w.slug:
+            continue
+        next_s = get_next_webinar_date(w.day_of_week or 1, w.start_hour or 19, w.start_minute or 0)
+        mins = (next_s - now).total_seconds() / 60
+        base = request.host_url.rstrip('/') + url_for('registrar.register') + f'?w={w.slug}'
+        for window, field, label in [(58, 62, 'reminder_60'), (8, 12, 'reminder_10')]:
+            lo, hi = window, field
+            if lo <= mins <= hi:
+                candidates = Registrant.query.filter(
+                    Registrant.webinar_id == w.id,
+                    Registrant.phone_number.isnot(None),
+                    Registrant.phone_number != '',
+                    db.func.date(Registrant.webinar_date) == next_s.date(),
+                ).all()
+                for r in candidates:
+                    attr = label + '_sent_at'
+                    if getattr(r, attr) is not None:
+                        continue
+                    phone = (r.phone_country_code or '+55').replace('+', '') + \
+                            (r.phone_number or '').replace(' ', '').replace('-', '').replace('(', '').replace(')', '')
+                    if len(phone) < 10:
+                        continue
+                    first = (r.name or '').split()[0] if r.name else ''
+                    mins_str = '60' if label == 'reminder_60' else '10'
+                    link = f'{base}&phone={phone}'
+                    msg = f'Oi {first}! Sua aula ao vivo começa em {mins_str} minutos. Acesse: {link}'
+                    if notify_sendflow(phone, msg):
+                        setattr(r, attr, datetime.utcnow())
+                        if label == 'reminder_60':
+                            sent_60 += 1
+                        else:
+                            sent_10 += 1
+    db.session.commit()
+    return jsonify({'ok': True, 'sent_60': sent_60, 'sent_10': sent_10})
+
+
+# ---------------------------------------------------------------------------
+# Importar CSV de chat para timeline
+# ---------------------------------------------------------------------------
+
+@admin_bp.route('/timeline/<int:webinar_id>/import-chat-csv', methods=['POST'])
+@login_required
+def import_chat_csv(webinar_id):
+    import csv
+    import io
+    WebinarConfig.query.get_or_404(webinar_id)
+    f = request.files.get('csv_file')
+    if not f:
+        return jsonify({'error': 'Nenhum arquivo enviado'}), 400
+    duration = int(request.form.get('duration', 0) or 0)
+    try:
+        content = f.read().decode('utf-8-sig')
+    except UnicodeDecodeError:
+        content = f.read().decode('latin-1')
+        f.seek(0)
+        content = f.read().decode('latin-1')
+    reader = csv.DictReader(io.StringIO(content))
+    rows = list(reader)
+    if not rows:
+        return jsonify({'error': 'CSV vazio'}), 400
+    rows_with_ts = [r for r in rows if str(r.get('video_timestamp') or '').strip().isdigit()]
+    rows_without_ts = [r for r in rows if not str(r.get('video_timestamp') or '').strip().isdigit()]
+    created = 0
+    skipped = 0
+    events_to_add = []
+    for r in rows_with_ts:
+        author = (r.get('user_name') or '').strip()
+        message = (r.get('comment') or '').strip()
+        ts = int(r['video_timestamp'])
+        if not message:
+            skipped += 1
+            continue
+        events_to_add.append(TimelineEvent(
+            webinar_id=webinar_id,
+            trigger_second=ts,
+            event_type='chat',
+            payload=json.dumps({'author': author or 'Participante', 'message': message}),
+        ))
+        created += 1
+    if rows_without_ts and duration > 0:
+        n = len(rows_without_ts)
+        for i, r in enumerate(rows_without_ts):
+            author = (r.get('user_name') or '').strip()
+            message = (r.get('comment') or '').strip()
+            if not message:
+                skipped += 1
+                continue
+            ts = int(duration * (i + 1) / (n + 1))
+            events_to_add.append(TimelineEvent(
+                webinar_id=webinar_id,
+                trigger_second=ts,
+                event_type='chat',
+                payload=json.dumps({'author': author or 'Participante', 'message': message}),
+            ))
+            created += 1
+    else:
+        skipped += len(rows_without_ts)
+    for e in events_to_add:
+        db.session.add(e)
+    db.session.commit()
+    return jsonify({'ok': True, 'created': created, 'skipped': skipped})
 
 
 @admin_bp.route('/ai-timeline/<int:webinar_id>/import', methods=['POST'])

@@ -242,7 +242,25 @@
                         <input class="adm-input" type="datetime-local" name="test_date" value="{{ webinar.test_date or '' }}">
                     </div>
                 </div>
-                <div style="display:flex;align-items:center;gap:16px">
+                <!-- Modo Just in Time -->
+                <div style="margin-top:14px;padding:14px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.2);border-radius:10px">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+                        <div>
+                            <p style="font-size:13px;font-weight:700;color:#818cf8;margin-bottom:2px">⚡ Modo Just in Time</p>
+                            <p style="font-size:12px;color:var(--text-muted)">A sessão começa automaticamente X minutos após cada inscrição. Ideal para funil perpétuo.</p>
+                        </div>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-secondary)">
+                            <input type="checkbox" name="jit_enabled" id="jit-toggle" value="1" {% if webinar.jit_enabled %}checked{% endif %} style="width:16px;height:16px;accent-color:#818cf8" onchange="document.getElementById('jit-fields').style.display=this.checked?'block':'none'">
+                            Ativar JIT
+                        </label>
+                    </div>
+                    <div id="jit-fields" style="display:{% if webinar.jit_enabled %}block{% else %}none{% endif %}">
+                        <label class="adm-label">Delay em minutos após inscrição</label>
+                        <input class="adm-input" type="number" name="jit_delay_minutes" value="{{ webinar.jit_delay_minutes or 15 }}" min="1" max="1440" style="max-width:120px">
+                        <p style="font-size:11px;color:var(--text-muted);margin-top:4px">Quando ativo, os campos de dia e horário da semana são ignorados.</p>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:16px;margin-top:14px">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-secondary)">
                         <input type="checkbox" name="is_active" value="1" {% if webinar.is_active %}checked{% endif %} style="width:16px;height:16px;accent-color:var(--accent-gold)">
                         Ativo
@@ -479,6 +497,22 @@
         {% else %}
         <p style="text-align:center;color:var(--text-muted);font-size:13px;padding:24px 0">Nenhum evento cadastrado. Adicione acima ou use o <a href="{{ url_for('admin.ai_timeline', webinar_id=webinar.id) }}" style="color:var(--accent-gold)">Gerador de IA</a>.</p>
         {% endif %}
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <!-- GRÁFICO DE RETENÇÃO -->
+    <!-- ══════════════════════════════════════════════════════════════ -->
+    <div class="adm-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+            <p class="adm-section-title" style="margin-bottom:0;border-bottom:none">📈 Retenção por minuto</p>
+            <select id="retention-session" class="adm-input adm-select" style="width:auto;font-size:12px" onchange="loadRetention(this.value)">
+                <option value="">Todas as sessões</option>
+            </select>
+        </div>
+        <div style="position:relative;height:180px">
+            <canvas id="retention-chart"></canvas>
+        </div>
+        <p id="retention-empty" style="text-align:center;color:var(--text-muted);font-size:13px;padding:32px 0;display:none">Nenhum dado de retenção ainda.</p>
     </div>
 
     <!-- ══════════════════════════════════════════════════════════════ -->
@@ -794,5 +828,79 @@ document.getElementById('export-modal').addEventListener('click', function(e) {
 // Inicia polling de moderação
 pollPending();
 setInterval(pollPending, 4000);
+
+// ── Gráfico de retenção ───────────────────────────────────────────────────
+let retentionChart = null;
+
+async function loadSessionDates() {
+    try {
+        const resp = await fetch('/admin/api/session-dates/{{ webinar.id }}');
+        const dates = await resp.json();
+        const sel = document.getElementById('retention-session');
+        dates.forEach(function(d) {
+            const opt = document.createElement('option');
+            opt.value = d; opt.textContent = d;
+            sel.appendChild(opt);
+        });
+    } catch(e) {}
+}
+
+async function loadRetention(sessionDate) {
+    try {
+        const url = '/admin/api/retention/{{ webinar.id }}' + (sessionDate ? '?session_date=' + sessionDate : '');
+        const resp = await fetch(url);
+        const data = await resp.json();
+        const empty = document.getElementById('retention-empty');
+        const canvas = document.getElementById('retention-chart');
+        if (!data.length) {
+            empty.style.display = 'block';
+            canvas.style.display = 'none';
+            return;
+        }
+        empty.style.display = 'none';
+        canvas.style.display = 'block';
+        const labels = data.map(function(d) { return d.minute + 'min'; });
+        const values = data.map(function(d) { return d.viewers; });
+        const pitchMin = Math.floor(({{ webinar.pitch_second or 0 }}) / 60);
+        if (retentionChart) retentionChart.destroy();
+        retentionChart = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Espectadores',
+                    data: values,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245,158,11,.1)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.3,
+                    fill: true,
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    annotation: pitchMin > 0 ? {
+                        annotations: { pitch: {
+                            type: 'line', xMin: pitchMin + 'min', xMax: pitchMin + 'min',
+                            borderColor: '#ef4444', borderWidth: 1, borderDash: [4,4],
+                            label: { content: 'Pitch', display: true, color: '#ef4444', font: { size: 10 } }
+                        }}
+                    } : {}
+                },
+                scales: {
+                    x: { ticks: { color: '#666', maxTicksLimit: 10, font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' } },
+                    y: { ticks: { color: '#666', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' }, beginAtZero: true }
+                }
+            }
+        });
+    } catch(e) { console.error(e); }
+}
+
+loadSessionDates();
+loadRetention('');
 </script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 {% endblock %}

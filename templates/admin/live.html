@@ -45,6 +45,16 @@
     .stat-hero-num { font-size: 48px; font-weight: 800; color: var(--accent-gold); line-height: 1; }
     .stat-hero-label { font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
     .empty-state { text-align: center; color: var(--text-muted); font-size: 13px; padding: 32px 0; }
+    .mod-btn-approve {
+        background: linear-gradient(135deg, #16a34a, #22c55e); color: #fff;
+        border: none; border-radius: 7px; padding: 6px 14px; font-size: 12px;
+        font-weight: 700; cursor: pointer; font-family: 'Montserrat',sans-serif;
+    }
+    .mod-btn-reject {
+        background: rgba(239,68,68,.1); color: #dc2626;
+        border: 1px solid rgba(239,68,68,.25); border-radius: 7px; padding: 6px 14px;
+        font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Montserrat',sans-serif;
+    }
 </style>
 {% endblock %}
 
@@ -83,6 +93,16 @@
             <div id="chat-list" style="max-height:540px;overflow-y:auto"></div>
             <div id="chat-empty" class="empty-state">Nenhuma mensagem ainda</div>
         </div>
+    </div>
+
+    <!-- Moderação de mensagens pendentes -->
+    <div class="live-card" style="margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <h2 style="font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800">Moderação — Pendentes</h2>
+            <span style="font-size:11px;color:var(--text-muted)"><span id="pending-count">0</span> pendentes · timestamp do vídeo calculado automaticamente</span>
+        </div>
+        <div id="pending-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px"></div>
+        <div id="pending-empty" class="empty-state">Nenhuma mensagem pendente</div>
     </div>
 </div>
 
@@ -208,5 +228,68 @@ document.addEventListener('keydown', function(e) {
 
 poll();
 setInterval(poll, 5000);
+
+// ── Moderação de pendentes ────────────────────────────────────────────────
+async function pollPending() {
+    try {
+        const resp = await fetch(`/admin/api/pending-chat/${WEBINAR_ID}`);
+        const data = await resp.json();
+        renderPending(data.messages || []);
+    } catch(e) {}
+}
+
+function renderPending(msgs) {
+    const cnt = document.getElementById('pending-count');
+    const list = document.getElementById('pending-list');
+    const empty = document.getElementById('pending-empty');
+    cnt.textContent = msgs.length;
+    if (!msgs.length) { list.innerHTML = ''; empty.style.display = ''; return; }
+    empty.style.display = 'none';
+    // Mantém cards já exibidos, adiciona apenas novos
+    msgs.forEach(m => {
+        if (document.getElementById('pending-' + m.id)) return;
+        const card = document.createElement('div');
+        card.className = 'chat-item';
+        card.id = 'pending-' + m.id;
+        card.innerHTML = `
+            <div class="chat-header">
+                <span class="chat-author">${escHtml(m.name)}</span>
+                <span class="chat-time">${fmtTime(m.created_at)}</span>
+            </div>
+            <p class="chat-msg">${escHtml(m.message)}</p>
+            <div style="display:flex;gap:6px;margin-top:8px">
+                <button class="mod-btn-approve" onclick="moderateMsg(${m.id},'approve')">✓ Aprovar</button>
+                <button class="mod-btn-reject" onclick="moderateMsg(${m.id},'reject')">✕ Rejeitar</button>
+            </div>
+        `;
+        list.appendChild(card);
+    });
+}
+
+async function moderateMsg(id, action) {
+    const card = document.getElementById('pending-' + id);
+    if (card) card.style.opacity = '0.5';
+    try {
+        const resp = await fetch(`/admin/api/moderate-chat/${id}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({action})
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            card?.remove();
+            const cnt = document.getElementById('pending-count');
+            const n = Math.max(0, parseInt(cnt.textContent) - 1);
+            cnt.textContent = n;
+            if (n === 0) document.getElementById('pending-empty').style.display = '';
+        }
+    } catch(e) {
+        alert('Erro: ' + e);
+        if (card) card.style.opacity = '1';
+    }
+}
+
+pollPending();
+setInterval(pollPending, 8000);
 </script>
 {% endblock %}

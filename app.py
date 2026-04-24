@@ -52,6 +52,17 @@ def migrate_db(app):
             if col not in r_cols:
                 db.session.execute(text(f'ALTER TABLE registrants ADD COLUMN {col} {typedef}'))
 
+        # webinar_config — JIT
+        for col, typedef in {'jit_enabled': 'INTEGER DEFAULT 0', 'jit_delay_minutes': 'INTEGER DEFAULT 15'}.items():
+            if col not in wc_cols:
+                db.session.execute(text(f'ALTER TABLE webinar_config ADD COLUMN {col} {typedef}'))
+
+        # registrants — lembretes WhatsApp
+        r2_new = {'reminder_60_sent_at': 'DATETIME', 'reminder_10_sent_at': 'DATETIME'}
+        for col, typedef in r2_new.items():
+            if col not in r_cols:
+                db.session.execute(text(f'ALTER TABLE registrants ADD COLUMN {col} {typedef}'))
+
         # user_chat_messages novas colunas
         ucm_cols = {c['name'] for c in inspector.get_columns('user_chat_messages')}
         ucm_new = {

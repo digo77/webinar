@@ -260,6 +260,21 @@ def user_chat_post():
     return jsonify({'ok': True, 'id': msg.id, 'created_at': msg.created_at.isoformat()})
 
 
+@sala_bp.route('/api/session-ended', methods=['POST'])
+def session_ended():
+    """Chamado pelo frontend quando end_broadcast dispara. Envia relatório pós-sessão."""
+    webinar_id = session.get('webinar_id')
+    if not webinar_id:
+        return jsonify({'ok': False})
+    if not session.get('is_preview'):
+        try:
+            from services.notifier import notify_session_report
+            notify_session_report(webinar_id)
+        except Exception:
+            pass
+    return jsonify({'ok': True})
+
+
 @sala_bp.route('/api/public-chat')
 def public_chat():
     """Feed público de mensagens aprovadas pelo admin. Inclui comentário fixado."""

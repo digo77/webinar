@@ -73,11 +73,17 @@ def register():
             ).first()
 
         if not registrant:
-            webinar_date = get_active_session_date(
-                day_of_week=webinar.day_of_week or 1,
-                start_hour=webinar.start_hour or 19,
-                start_minute=webinar.start_minute or 0,
-            )
+            if webinar.jit_enabled:
+                from datetime import timedelta
+                from services.scheduler import BRT
+                from datetime import datetime as _dt
+                webinar_date = _dt.now(BRT) + timedelta(minutes=webinar.jit_delay_minutes or 15)
+            else:
+                webinar_date = get_active_session_date(
+                    day_of_week=webinar.day_of_week or 1,
+                    start_hour=webinar.start_hour or 19,
+                    start_minute=webinar.start_minute or 0,
+                )
             naive_dt = webinar_date.replace(tzinfo=None)
 
             registrant = Registrant(
@@ -118,10 +124,14 @@ def register():
         return redirect(url_for('sala.sala'))
 
     # GET
-    next_date = get_next_webinar_date(
-        day_of_week=webinar.day_of_week or 1,
-        start_hour=webinar.start_hour or 19,
-        start_minute=webinar.start_minute or 0,
-    )
-    is_open = is_webinar_open(next_date) if next_date else False
-    return render_template('registrar.html', webinar=webinar, error=None, is_open=is_open)
+    if webinar.jit_enabled:
+        is_open = True
+        next_date = None
+    else:
+        next_date = get_next_webinar_date(
+            day_of_week=webinar.day_of_week or 1,
+            start_hour=webinar.start_hour or 19,
+            start_minute=webinar.start_minute or 0,
+        )
+        is_open = is_webinar_open(next_date) if next_date else False
+    return render_template('registrar.html', webinar=webinar, error=None, is_open=is_open, jit=webinar.jit_enabled, jit_delay=webinar.jit_delay_minutes or 15)

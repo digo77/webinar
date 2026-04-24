@@ -23,6 +23,8 @@ class Registrant(db.Model):
     utm_medium = db.Column(db.Text)
     utm_campaign = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    reminder_60_sent_at = db.Column(db.DateTime, nullable=True)
+    reminder_10_sent_at = db.Column(db.DateTime, nullable=True)
     webinar = db.relationship('WebinarConfig', backref='registrants')
 
 
@@ -58,6 +60,9 @@ class WebinarConfig(db.Model):
     register_presenter_photo_url = db.Column(db.Text)
     register_bullets = db.Column(db.Text)  # JSON array de strings
     register_button_text = db.Column(db.Text)
+    # Modo Just in Time
+    jit_enabled = db.Column(db.Boolean, default=False)
+    jit_delay_minutes = db.Column(db.Integer, default=15)
 
 
 class TimelineEvent(db.Model):
