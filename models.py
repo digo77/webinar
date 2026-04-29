@@ -110,3 +110,30 @@ class UserChatMessage(db.Model):
     is_pinned = db.Column(db.Boolean, default=False)
     sender_name = db.Column(db.Text)  # quando admin posta como "Equipe" (registrant_id=None)
     registrant = db.relationship('Registrant', backref='user_chat')
+
+
+class Poll(db.Model):
+    __tablename__ = 'polls'
+    id = db.Column(db.Integer, primary_key=True)
+    webinar_id = db.Column(db.Integer, db.ForeignKey('webinar_config.id'), nullable=False)
+    question = db.Column(db.Text, nullable=False)
+    options = db.Column(db.Text, nullable=False)  # JSON list
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class PollVote(db.Model):
+    __tablename__ = 'poll_votes'
+    id = db.Column(db.Integer, primary_key=True)
+    poll_id = db.Column(db.Integer, db.ForeignKey('polls.id'), nullable=False)
+    session_key = db.Column(db.String(64))
+    option_index = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class Reaction(db.Model):
+    __tablename__ = 'reactions'
+    id = db.Column(db.Integer, primary_key=True)
+    webinar_id = db.Column(db.Integer, nullable=False, index=True)
+    emoji = db.Column(db.String(8), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)

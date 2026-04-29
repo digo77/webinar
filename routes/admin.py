@@ -9,7 +9,7 @@ import pytz
 from flask import (Blueprint, current_app, jsonify, redirect,
                    render_template, request, session, url_for)
 
-from models import (LivePresence, Registrant, TimelineEvent,
+from models import (LivePresence, Poll, PollVote, Registrant, TimelineEvent,
                     UserChatMessage, WebinarConfig, db)
 from services.scheduler import BRT, DAY_NAMES
 
@@ -698,6 +698,31 @@ def _estimate_video_second(webinar_id):
 # ---------------------------------------------------------------------------
 # Moderação de chat
 # ---------------------------------------------------------------------------
+
+@admin_bp.route('/api/webinar/<int:webinar_id>/poll', methods=['POST'])
+@login_required
+def create_poll(webinar_id):
+    WebinarConfig.query.get_or_404(webinar_id)
+    data = request.get_json(silent=True) or {}
+    question = (data.get('question') or '').strip()
+    options = [o.strip() for o in (data.get('options') or []) if isinstance(o, str) and o.strip()]
+    if not question or len(options) < 2:
+        return jsonify({'error': 'invalid'}), 400
+    Poll.query.filter_by(webinar_id=webinar_id, is_active=True).update({'is_active': False})
+    poll = Poll(webinar_id=webinar_id, question=question, options=json.dumps(options))
+    db.session.add(poll)
+    db.session.commit()
+    return jsonify({'ok': True, 'id': poll.id})
+
+
+@admin_bp.route('/api/poll/<int:poll_id>/close', methods=['POST'])
+@login_required
+def close_poll(poll_id):
+    poll = Poll.query.get_or_404(poll_id)
+    poll.is_active = False
+    db.session.commit()
+    return jsonify({'ok': True})
+
 
 @admin_bp.route('/api/webinar/<int:webinar_id>/inbox')
 @login_required

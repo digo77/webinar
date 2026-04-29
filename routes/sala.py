@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
 import pytz
-from models import LivePresence, Registrant, TimelineEvent, UserChatMessage, WebinarConfig, db
+from models import LivePresence, Poll, PollVote, Reaction, Registrant, TimelineEvent, UserChatMessage, WebinarConfig, db
 from services.scheduler import BRT, is_webinar_open
 
 _REPLAY_CUTOFF_HOUR = 21
@@ -373,6 +373,84 @@ def public_chat():
         } for m, r in rows],
         'pinned': pinned,
     })
+
+
+@sala_bp.route('/api/poll/<int:webinar_id>')
+def get_poll(webinar_id):
+    """Retorna enquete ativa com contagem de votos."""
+    poll = Poll.query.filter_by(webinar_id=webinar_id, is_active=True).order_by(Poll.id.desc()).first()
+    if not poll:
+        return jsonify(None)
+    options = json.loads(poll.options)
+    votes = PollVote.query.filter_by(poll_id=poll.id).all()
+    counts = [0] * len(options)
+    for v in votes:
+        if 0 <= v.option_index < len(options):
+            counts[v.option_index] += 1
+    session_key = str(session.get('registrant_id') or '')
+    my_vote = None
+    if session_key:
+        mv = PollVote.query.filter_by(poll_id=poll.id, session_key=session_key).first()
+        if mv:
+            my_vote = mv.option_index
+    return jsonify({'id': poll.id, 'question': poll.question, 'options': options,
+                    'counts': counts, 'total': sum(counts), 'my_vote': my_vote})
+
+
+@sala_bp.route('/api/poll/<int:poll_id>/vote', methods=['POST'])
+def vote_poll(poll_id):
+    poll = Poll.query.get_or_404(poll_id)
+    if not poll.is_active:
+        return jsonify({'error': 'closed'}), 400
+    data = request.get_json(silent=True) or {}
+    option_index = data.get('option_index')
+    if option_index is None:
+        return jsonify({'error': 'no option'}), 400
+    options = json.loads(poll.options)
+    if not (0 <= int(option_index) < len(options)):
+        return jsonify({'error': 'invalid option'}), 400
+    session_key = str(session.get('registrant_id') or request.remote_addr)
+    if PollVote.query.filter_by(poll_id=poll_id, session_key=session_key).first():
+        return jsonify({'error': 'already voted'}), 400
+    db.session.add(PollVote(poll_id=poll_id, session_key=session_key, option_index=int(option_index)))
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@sala_bp.route('/api/react', methods=['POST'])
+def react():
+    data = request.get_json(silent=True) or {}
+    emoji = (data.get('emoji') or '').strip()
+    if emoji not in {'❤️', '👏', '🔥', '😮'}:
+        return jsonify({'error': 'invalid'}), 400
+    webinar_id = session.get('webinar_id')
+    if not webinar_id:
+        return jsonify({'error': 'no session'}), 401
+    db.session.add(Reaction(webinar_id=webinar_id, emoji=emoji))
+    Reaction.query.filter(Reaction.created_at < datetime.utcnow() - timedelta(minutes=5)).delete()
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@sala_bp.route('/api/reactions/<int:webinar_id>')
+def get_reactions(webinar_id):
+    since_str = request.args.get('since', '').strip()
+    cutoff = datetime.utcnow() - timedelta(seconds=3)
+    if since_str:
+        try:
+            ss = datetime.fromisoformat(since_str.replace('Z', ''))
+            if ss > cutoff:
+                cutoff = ss
+        except (ValueError, TypeError):
+            pass
+    rows = Reaction.query.filter(
+        Reaction.webinar_id == webinar_id,
+        Reaction.created_at >= cutoff,
+    ).all()
+    counts = {}
+    for r in rows:
+        counts[r.emoji] = counts.get(r.emoji, 0) + 1
+    return jsonify({'counts': counts, 'ts': datetime.utcnow().isoformat()})
 
 
 @sala_bp.route('/api/my-chat')

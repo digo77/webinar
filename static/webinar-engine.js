@@ -69,6 +69,8 @@
             this.PreloadChat.run();
             this.BackgroundChat.start();
             if (window.WEBINAR_IS_ADMIN) this.AdminInbox.start();
+            this.Poll.start();
+            this.Reactions.start();
         },
 
         // Timer controlado para modo preview — ignora VTurb, permite seek via botões
@@ -719,6 +721,162 @@
             }
         },
 
+        // ── Enquete ao vivo ───────────────────────────────────────────────────
+        Poll: {
+            _activePollId: null,
+            _interval: null,
+
+            start() {
+                if (window.WEBINAR_PREVIEW) return;
+                const self = this;
+                setTimeout(function () { self.fetch(); }, 2000);
+                self._interval = setInterval(function () { self.fetch(); }, 4000);
+            },
+
+            async fetch() {
+                const wid = window.WEBINAR_ID;
+                if (!wid) return;
+                try {
+                    const r = await fetch('/api/poll/' + wid);
+                    const data = await r.json();
+                    this._render(data);
+                } catch (e) {}
+            },
+
+            async vote(pollId, optionIndex) {
+                try {
+                    await fetch('/api/poll/' + pollId + '/vote', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ option_index: optionIndex })
+                    });
+                    await this.fetch();
+                } catch (e) {}
+            },
+
+            async closeAdmin(pollId) {
+                if (!confirm('Encerrar enquete?')) return;
+                try {
+                    await fetch('/admin/api/poll/' + pollId + '/close', { method: 'POST' });
+                    await this.fetch();
+                } catch (e) {}
+            },
+
+            _render(data) {
+                const widget = document.getElementById('poll-widget');
+                if (!widget) return;
+                if (!data) {
+                    widget.style.display = 'none';
+                    this._activePollId = null;
+                    return;
+                }
+                this._activePollId = data.id;
+                widget.style.display = 'block';
+                const total = data.total || 0;
+                const voted = data.my_vote !== null && data.my_vote !== undefined;
+                const isAdmin = window.WEBINAR_IS_ADMIN;
+
+                let html = '<div style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--accent-gold);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">📊 Enquete ao vivo</div>';
+                html += '<p style="font-family:Lato,sans-serif;font-size:13px;font-weight:700;color:var(--text-primary);margin:0 0 10px;line-height:1.35">' + escHtml(data.question) + '</p>';
+
+                if (!voted) {
+                    // Botões de votação
+                    html += '<div style="display:flex;flex-direction:column;gap:6px">';
+                    data.options.forEach(function (opt, i) {
+                        html += '<button class="poll-opt-btn" onclick="WebinarEngine.Poll.vote(' + data.id + ',' + i + ')">' + escHtml(opt) + '</button>';
+                    });
+                    html += '</div>';
+                } else {
+                    // Resultados
+                    html += '<div style="display:flex;flex-direction:column;gap:8px">';
+                    data.options.forEach(function (opt, i) {
+                        const count = data.counts[i] || 0;
+                        const pct = total > 0 ? Math.round(count / total * 100) : 0;
+                        const isMyVote = data.my_vote === i;
+                        html += '<div>' +
+                            '<div style="display:flex;justify-content:space-between;font-family:Lato,sans-serif;font-size:12px;margin-bottom:3px">' +
+                                '<span style="color:' + (isMyVote ? 'var(--accent-gold)' : 'var(--text-primary)') + ';font-weight:' + (isMyVote ? '700' : '400') + '">' + escHtml(opt) + (isMyVote ? ' ✓' : '') + '</span>' +
+                                '<span style="color:var(--text-muted);font-size:11px">' + pct + '% (' + count + ')</span>' +
+                            '</div>' +
+                            '<div class="poll-bar"><div class="poll-bar-fill" style="width:' + pct + '%"></div></div>' +
+                        '</div>';
+                    });
+                    html += '</div>';
+                }
+
+                html += '<div style="font-family:Lato,sans-serif;font-size:10px;color:var(--text-muted);margin-top:8px">' + total + ' voto' + (total !== 1 ? 's' : '') + '</div>';
+
+                if (isAdmin) {
+                    html += '<button onclick="WebinarEngine.Poll.closeAdmin(' + data.id + ')" style="margin-top:8px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#dc2626;border-radius:6px;padding:4px 10px;font-family:Montserrat,sans-serif;font-weight:700;font-size:10px;cursor:pointer">🔚 Encerrar enquete</button>';
+                }
+
+                widget.innerHTML = html;
+            }
+        },
+
+        // ── Reações flutuantes ────────────────────────────────────────────────
+        Reactions: {
+            _lastTs: null,
+            _interval: null,
+            _lastSent: 0,
+            RATE_MS: 1500,
+
+            start() {
+                if (window.WEBINAR_PREVIEW) return;
+                const self = this;
+                self._interval = setInterval(function () { self.fetchRemote(); }, 2500);
+            },
+
+            send(emoji) {
+                const now = Date.now();
+                if (now - this._lastSent < this.RATE_MS) return;
+                this._lastSent = now;
+                this._float(emoji, true);
+                fetch('/api/react', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emoji: emoji })
+                }).catch(function () {});
+            },
+
+            async fetchRemote() {
+                const wid = window.WEBINAR_ID;
+                if (!wid) return;
+                try {
+                    const url = '/api/reactions/' + wid + (this._lastTs ? '?since=' + encodeURIComponent(this._lastTs) : '');
+                    const r = await fetch(url);
+                    const data = await r.json();
+                    this._lastTs = data.ts;
+                    const counts = data.counts || {};
+                    Object.entries(counts).forEach(function ([emoji, count]) {
+                        const n = Math.min(parseInt(count) || 0, 5);
+                        for (let i = 0; i < n; i++) {
+                            setTimeout(function () {
+                                WebinarEngine.Reactions._float(emoji, false);
+                            }, i * 200);
+                        }
+                    });
+                } catch (e) {}
+            },
+
+            _float(emoji, fromButton) {
+                const wrap = document.getElementById('reaction-floats');
+                if (!wrap) return;
+                const parent = wrap.parentElement;
+                const w = parent ? parent.clientWidth : 300;
+                const el = document.createElement('div');
+                el.className = 'react-float';
+                const x = fromButton
+                    ? (w - 50) + (Math.random() - 0.5) * 30  // perto dos botões (direita)
+                    : 30 + Math.random() * (w - 80);           // posição aleatória
+                const rot = (Math.random() - 0.5) * 28 + 'deg';
+                el.style.cssText = 'left:' + x + 'px;bottom:50px;--rot:' + rot;
+                el.textContent = emoji;
+                wrap.appendChild(el);
+                setTimeout(function () { el.remove(); }, 1700);
+            }
+        },
+
         // ── Admin Inbox Drawer ────────────────────────────────────────────────
         AdminInbox: {
             _msgs: [],
@@ -991,6 +1149,56 @@
     window.closeAdminInbox = function () {
         WebinarEngine.AdminInbox.close();
     };
+
+    // ── Reações ───────────────────────────────────────────────────────────────
+    window.sendReaction = function (emoji) {
+        WebinarEngine.Reactions.send(emoji);
+    };
+
+    // ── Enquete (admin) ───────────────────────────────────────────────────────
+    window.togglePollModal = function () {
+        const modal = document.getElementById('poll-modal');
+        if (!modal) return;
+        const isOpen = modal.style.display === 'flex';
+        modal.style.display = isOpen ? 'none' : 'flex';
+        if (!isOpen) {
+            document.getElementById('poll-question').focus();
+        }
+    };
+    window.closePollModal = function () {
+        const modal = document.getElementById('poll-modal');
+        if (modal) modal.style.display = 'none';
+    };
+    window.launchPoll = async function () {
+        const question = (document.getElementById('poll-question').value || '').trim();
+        const options = Array.from(document.querySelectorAll('.poll-opt-input'))
+            .map(function (i) { return i.value.trim(); })
+            .filter(function (v) { return v; });
+        if (!question) { alert('Digite a pergunta.'); return; }
+        if (options.length < 2) { alert('Adicione pelo menos 2 opções.'); return; }
+        try {
+            const r = await fetch('/admin/api/webinar/' + window.WEBINAR_ID + '/poll', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: question, options: options })
+            });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            closePollModal();
+            document.getElementById('poll-question').value = '';
+            document.querySelectorAll('.poll-opt-input').forEach(function (i) { i.value = ''; });
+            WebinarEngine.Poll.fetch();
+        } catch (err) {
+            alert('Erro ao lançar enquete: ' + err.message);
+        }
+    };
+
+    // Fechar modal com ESC
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('poll-modal');
+            if (modal && modal.style.display === 'flex') closePollModal();
+        }
+    });
 
     // Admin: ações no drawer (aprovar/rejeitar/responder)
     document.addEventListener('click', function (e) {
