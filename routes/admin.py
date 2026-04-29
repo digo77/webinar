@@ -761,6 +761,28 @@ def pin_chat(msg_id):
     return jsonify({'ok': True})
 
 
+@admin_bp.route('/api/chat/<int:msg_id>', methods=['DELETE'])
+@login_required
+def delete_chat_msg(msg_id):
+    msg = UserChatMessage.query.get_or_404(msg_id)
+    msg.status = 'rejected'
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@admin_bp.route('/api/chat/<int:msg_id>', methods=['PATCH'])
+@login_required
+def edit_chat_msg(msg_id):
+    msg = UserChatMessage.query.get_or_404(msg_id)
+    data = request.get_json(silent=True) or {}
+    new_text = (data.get('message') or '').strip()
+    if not new_text:
+        return jsonify({'error': 'empty'}), 400
+    msg.message = new_text[:500]
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
 @admin_bp.route('/api/webinar/<int:webinar_id>/admin-chat', methods=['POST'])
 @login_required
 def admin_send_chat(webinar_id):

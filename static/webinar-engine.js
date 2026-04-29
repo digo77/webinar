@@ -277,22 +277,40 @@
                 if (chip) chip.classList.remove('show');
             },
 
-            addMessage(author, message, isUser, eventId, ts) {
+            addMessage(author, message, isUser, eventId, ts, chatMsgId) {
                 const box = this.box;
                 if (!box) return;
                 this._attachScrollListener();
                 const div = document.createElement('div');
                 div.className = 'chat-msg';
                 if (eventId) div.dataset.eventId = eventId;
+                if (chatMsgId) div.dataset.chatMsgId = chatMsgId;
                 const color = isUser ? 'var(--accent-gold)' : avatarColor(author);
                 const initial = author.charAt(0).toUpperCase();
-                const showDelete = window.WEBINAR_IS_ADMIN && eventId && typeof eventId === 'number';
-                const deleteBtn = showDelete
-                    ? '<button class="chat-delete-btn" data-event-id="' + eventId + '" title="Excluir comentario" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#dc2626;border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;flex-shrink:0;line-height:1">🗑</button>'
-                    : '';
                 const tsHtml = ts
                     ? '<span style="font-family:Lato,sans-serif;font-size:10px;color:var(--text-muted);margin-left:5px;font-weight:400">' + escHtml(ts) + '</span>'
                     : '';
+
+                let rightHtml = '';
+                if (window.WEBINAR_IS_ADMIN && chatMsgId) {
+                    const cid = chatMsgId;
+                    const bs = 'background:rgba(30,58,95,.12);border:1px solid rgba(30,58,95,.2);border-radius:5px;padding:2px 5px;font-size:10px;cursor:pointer;line-height:1.3';
+                    const ds = 'background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#dc2626;border-radius:5px;padding:2px 5px;font-size:10px;cursor:pointer;line-height:1.3';
+                    rightHtml =
+                        '<div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;margin-left:4px">' +
+                            '<div style="display:flex;gap:2px">' +
+                                '<button class="admin-chat-btn" data-chat-id="' + cid + '" data-action="edit" title="Editar" style="' + bs + '">✏️</button>' +
+                                '<button class="admin-chat-btn" data-chat-id="' + cid + '" data-action="pin" title="Fixar" style="' + bs + '">📌</button>' +
+                            '</div>' +
+                            '<div style="display:flex;gap:2px">' +
+                                '<button class="admin-chat-btn" data-chat-id="' + cid + '" data-action="delete" title="Apagar" style="' + ds + '">🗑</button>' +
+                                '<button class="admin-chat-btn" data-chat-id="' + cid + '" data-action="unpin" title="Desafixar" style="' + bs + '">📍</button>' +
+                            '</div>' +
+                        '</div>';
+                } else if (window.WEBINAR_IS_ADMIN && eventId && typeof eventId === 'number') {
+                    rightHtml = '<button class="chat-delete-btn" data-event-id="' + eventId + '" title="Excluir comentario" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#dc2626;border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;flex-shrink:0;line-height:1">🗑</button>';
+                }
+
                 div.innerHTML =
                     '<div style="display:flex;gap:10px;align-items:flex-start">' +
                         '<div style="width:32px;height:32px;border-radius:50%;background:' + color + ';display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#fff;flex-shrink:0">' + escHtml(initial) + '</div>' +
@@ -301,7 +319,7 @@
                             tsHtml +
                             '<p style="font-family:Lato,sans-serif;font-size:13px;color:var(--text-primary);margin:2px 0 0;line-height:1.45;word-wrap:break-word">' + escHtml(message) + '</p>' +
                         '</div>' +
-                        deleteBtn +
+                        rightHtml +
                     '</div>';
                 box.appendChild(div);
                 // Reset do "silencio" pro BackgroundChat nao competir
@@ -649,7 +667,8 @@
                     // Novas mensagens aprovadas
                     for (const m of (data.messages || [])) {
                         if (m.id > this.lastId) this.lastId = m.id;
-                        WebinarEngine.Chat.addMessage(m.name || 'Participante', m.message || '', false, null, m.ts || null);
+                        const chatMsgId = (window.WEBINAR_IS_ADMIN && m.is_equipe) ? m.id : null;
+                        WebinarEngine.Chat.addMessage(m.name || 'Participante', m.message || '', false, null, m.ts || null, chatMsgId);
                         if (m.admin_reply) {
                             setTimeout(function() {
                                 WebinarEngine.Chat.addAdminReply(m.admin_reply);
@@ -679,7 +698,17 @@
                     box.parentNode.insertBefore(el, box);
                 }
                 const esc = function(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
-                el.innerHTML = '<span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--accent-gold);display:block;margin-bottom:2px">📌 Mensagem fixada</span>' + esc(pinned.message);
+                const unpinBtn = window.WEBINAR_IS_ADMIN
+                    ? '<button onclick="adminUnpin(' + pinned.id + ')" style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#dc2626;border-radius:5px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:Montserrat,sans-serif;font-weight:700;white-space:nowrap;flex-shrink:0">✕ Desafixar</button>'
+                    : '';
+                el.innerHTML =
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
+                        '<div style="flex:1;min-width:0">' +
+                            '<span style="font-family:Montserrat,sans-serif;font-size:10px;font-weight:700;color:var(--accent-gold);display:block;margin-bottom:2px">📌 Mensagem fixada</span>' +
+                            esc(pinned.message) +
+                        '</div>' +
+                        unpinBtn +
+                    '</div>';
             },
             start() {
                 if (window.WEBINAR_PREVIEW) return;
@@ -776,8 +805,8 @@
                 body: JSON.stringify({ message: msg })
             });
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            // Mostra imediatamente no próprio chat sem esperar o poll
-            WebinarEngine.Chat.addMessage('Equipe', msg, false);
+            const data = await resp.json();
+            WebinarEngine.Chat.addMessage('Equipe', msg, false, null, null, data.id || null);
         } catch (err) {
             alert('Erro ao enviar: ' + err.message);
             input.value = msg;
@@ -797,6 +826,87 @@
             body: JSON.stringify({ message: msg.trim() })
         }).catch(function () {});
     };
+
+    // Admin: desafixar mensagem pelo banner
+    window.adminUnpin = function (chatId) {
+        fetch('/admin/api/pin-chat/' + chatId, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pin: false })
+        }).catch(function () {});
+        const el = document.getElementById('chat-pinned-banner');
+        if (el) el.remove();
+        if (WebinarEngine.PublicChat) WebinarEngine.PublicChat.pinnedId = null;
+    };
+
+    // Admin: ações em mensagens do admin no chat (pin/unpin/edit/delete)
+    document.addEventListener('click', async function (e) {
+        const btn = e.target.closest('.admin-chat-btn');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const chatId = btn.dataset.chatId;
+        const action = btn.dataset.action;
+        if (!chatId) return;
+
+        if (action === 'delete') {
+            if (!confirm('Apagar esta mensagem do chat?')) return;
+            btn.disabled = true;
+            try {
+                const r = await fetch('/admin/api/chat/' + chatId, { method: 'DELETE' });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const msgEl = btn.closest('.chat-msg');
+                if (msgEl) {
+                    msgEl.style.transition = 'opacity .25s';
+                    msgEl.style.opacity = '0';
+                    setTimeout(function () { msgEl.remove(); }, 250);
+                }
+            } catch (err) {
+                btn.disabled = false;
+                alert('Erro ao apagar: ' + err.message);
+            }
+        } else if (action === 'edit') {
+            const msgEl = btn.closest('.chat-msg');
+            const pEl = msgEl ? msgEl.querySelector('p') : null;
+            if (!pEl) return;
+            const newText = prompt('Editar mensagem:', pEl.textContent);
+            if (!newText || !newText.trim()) return;
+            try {
+                const r = await fetch('/admin/api/chat/' + chatId, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: newText.trim() })
+                });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                pEl.textContent = newText.trim();
+            } catch (err) {
+                alert('Erro ao editar: ' + err.message);
+            }
+        } else if (action === 'pin') {
+            try {
+                await fetch('/admin/api/pin-chat/' + chatId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: true })
+                });
+            } catch (err) {
+                alert('Erro ao fixar: ' + err.message);
+            }
+        } else if (action === 'unpin') {
+            try {
+                await fetch('/admin/api/pin-chat/' + chatId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: false })
+                });
+                const el = document.getElementById('chat-pinned-banner');
+                if (el) el.remove();
+                if (WebinarEngine.PublicChat) WebinarEngine.PublicChat.pinnedId = null;
+            } catch (err) {
+                alert('Erro ao desafixar: ' + err.message);
+            }
+        }
+    });
 
     // Admin: deletar comentario da timeline direto na sala
     document.addEventListener('click', async function (e) {

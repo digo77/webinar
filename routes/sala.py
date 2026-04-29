@@ -369,6 +369,7 @@ def public_chat():
             'message': m.message,
             'admin_reply': m.admin_reply,
             'ts': _fmt_ts_brt(m.created_at),
+            'is_equipe': bool(m.sender_name),
         } for m, r in rows],
         'pinned': pinned,
     })
