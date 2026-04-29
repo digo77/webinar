@@ -806,7 +806,12 @@
             });
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
             const data = await resp.json();
-            WebinarEngine.Chat.addMessage('Equipe', msg, false, null, null, data.id || null);
+            const newId = data.id || null;
+            WebinarEngine.Chat.addMessage('Equipe', msg, false, null, null, newId);
+            // Evita duplicação: PublicChat.poll não vai buscar essa msg no próximo tick
+            if (newId && newId > WebinarEngine.PublicChat.lastId) {
+                WebinarEngine.PublicChat.lastId = newId;
+            }
         } catch (err) {
             alert('Erro ao enviar: ' + err.message);
             input.value = msg;
