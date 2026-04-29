@@ -898,11 +898,11 @@ setInterval(() => {
 
     {% if is_admin and not is_preview %}
     <!-- ── Admin Inbox Drawer ────────────────────────────────────────────── -->
-    <div id="admin-drawer-overlay" onclick="WebinarEngine.AdminInbox.close()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:199"></div>
+    <div id="admin-drawer-overlay" onclick="closeAdminInbox()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:199"></div>
     <div id="admin-drawer" style="position:fixed;top:0;right:-400px;width:380px;max-width:95vw;height:100vh;height:100dvh;background:var(--bg-card);border-left:1px solid var(--border);box-shadow:-4px 0 28px rgba(0,0,0,.18);z-index:200;display:flex;flex-direction:column;transition:right .28s cubic-bezier(.4,0,.2,1)">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg-secondary)">
             <span style="font-family:'Montserrat',sans-serif;font-size:13px;font-weight:800;color:var(--text-primary)">💬 Mensagens dos Participantes</span>
-            <button onclick="WebinarEngine.AdminInbox.close()" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:0 4px;line-height:1">✕</button>
+            <button onclick="closeAdminInbox()" style="background:none;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;padding:0 4px;line-height:1">✕</button>
         </div>
         <div id="admin-drawer-msgs" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain"></div>
     </div>

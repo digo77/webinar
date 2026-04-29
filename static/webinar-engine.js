@@ -988,6 +988,9 @@
     window.toggleAdminInbox = function () {
         WebinarEngine.AdminInbox.toggle();
     };
+    window.closeAdminInbox = function () {
+        WebinarEngine.AdminInbox.close();
+    };
 
     // Admin: ações no drawer (aprovar/rejeitar/responder)
     document.addEventListener('click', function (e) {
