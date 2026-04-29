@@ -69,6 +69,7 @@ def migrate_db(app):
             'status': "TEXT DEFAULT 'approved'",
             'video_timestamp': 'INTEGER',
             'is_pinned': 'INTEGER DEFAULT 0',
+            'sender_name': 'TEXT',
         }
         for col, typedef in ucm_new.items():
             if col not in ucm_cols:

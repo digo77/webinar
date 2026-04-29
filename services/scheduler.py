@@ -35,8 +35,11 @@ def get_next_webinar_date(day_of_week=1, start_hour=19, start_minute=0, from_dt=
     return next_date
 
 
-def get_active_session_date(day_of_week=1, start_hour=19, start_minute=0):
-    """Retorna a sessão atual se estiver dentro de 30 min após o início, senão a próxima."""
+def get_active_session_date(day_of_week=1, start_hour=19, start_minute=0, replay_minutes=150):
+    """Retorna a sessão atual se estiver dentro de replay_minutes após o início, senão a próxima.
+
+    replay_minutes=150 cobre até 2h30m (ex: 19h00 → aceita registros até 21h30).
+    """
     now = datetime.now(BRT)
     days_back = (now.weekday() - day_of_week) % 7
     prev_date = (now - timedelta(days=days_back)).replace(
@@ -45,7 +48,7 @@ def get_active_session_date(day_of_week=1, start_hour=19, start_minute=0):
     if prev_date > now:
         prev_date -= timedelta(days=7)
     elapsed = (now - prev_date).total_seconds()
-    if 0 <= elapsed <= 30 * 60:
+    if 0 <= elapsed <= replay_minutes * 60:
         return prev_date
     return get_next_webinar_date(day_of_week, start_hour, start_minute)
 

@@ -643,11 +643,68 @@ setInterval(() => {
 }, 15000);
 </script>
 
+{% elif is_replay %}
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<!-- REPLAY                                                                 -->
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<div style="min-height:100vh;min-height:100dvh;background:var(--bg-primary);display:flex;flex-direction:column">
+    <header style="height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--border);background:var(--bg-secondary);position:sticky;top:0;z-index:50">
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            <span style="font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">▶ REPLAY</span>
+        </div>
+        <div style="font-family:'Montserrat',sans-serif;font-size:13px;font-weight:600;color:var(--text-primary);text-align:center;flex:1;margin:0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            {{ config.name if config else 'Webinário' }}
+        </div>
+    </header>
+    <div style="max-width:900px;width:100%;margin:0 auto;padding:24px 16px">
+        <div style="background:rgba(200,130,10,.08);border:1px solid rgba(200,130,10,.25);border-radius:12px;padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px">
+            <span style="font-size:20px;flex-shrink:0">📹</span>
+            <div>
+                <p style="font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;color:var(--accent-gold);margin-bottom:2px">A aula ao vivo já encerrou</p>
+                <p style="font-family:'Lato',sans-serif;font-size:13px;color:var(--text-secondary);line-height:1.4">Mas deixamos o replay disponível para você assistir agora.</p>
+            </div>
+        </div>
+        {% if config and config.vturb_video_id %}
+        <div style="background:#000;border-radius:12px;overflow:hidden;aspect-ratio:16/9;width:100%">
+            <vturb-smartplayer id="{{ config.vturb_video_id }}" style="display:block;width:100%;height:100%"></vturb-smartplayer>
+            <script>
+            var s=document.createElement("script");
+            s.src="https://scripts.converteai.net/8757ee6b-f7d2-4b00-9669-54aa471b73a9/players/{{ config.vturb_video_id.replace('vid-', '') }}/v4/player.js";
+            s.async=true; document.head.appendChild(s);
+            </script>
+        </div>
+        {% endif %}
+        {% if config and config.upsell_url %}
+        <div style="margin-top:24px;text-align:center">
+            <a href="{{ config.upsell_url }}" target="_blank" class="btn-gold" style="display:inline-block;text-decoration:none;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;padding:14px 28px">
+                {{ config.upsell_cta_text or 'Quero aproveitar a oferta' }} →
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
 {% else %}
 <!-- ══════════════════════════════════════════════════════════════════════ -->
 <!-- SALA AO VIVO                                                           -->
 <!-- ══════════════════════════════════════════════════════════════════════ -->
 <div class="sala-wrapper">
+
+    {% if is_admin and not is_preview %}
+    <!-- ── Barra Admin ─────────────────────────────────────────────── -->
+    <div id="admin-bar" style="background:linear-gradient(135deg,#1e3a5f,#1d4ed8);color:#fff;padding:10px 14px;z-index:60;box-shadow:0 2px 12px rgba(0,0,0,.3);flex-shrink:0">
+        <div style="max-width:1400px;margin:0 auto;display:flex;align-items:center;gap:8px;font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;flex-wrap:wrap">
+            <span style="font-size:13px;flex-shrink:0">🛡️ ADMIN</span>
+            <input id="admin-chat-input" type="text" placeholder="Escrever no chat como Equipe..."
+                   style="flex:1;min-width:180px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:6px;padding:7px 12px;font-size:12px;color:#fff;font-family:inherit;outline:none"
+                   onkeydown="if(event.key==='Enter')adminSendChat()">
+            <button onclick="adminSendChat()" style="background:#fff;color:#1e3a5f;border:none;border-radius:6px;padding:7px 14px;font-family:inherit;font-weight:800;font-size:11px;cursor:pointer;white-space:nowrap;flex-shrink:0">📢 Enviar</button>
+            <button onclick="adminPinPrompt()" style="background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:6px;padding:7px 12px;font-family:inherit;font-weight:700;font-size:11px;cursor:pointer;white-space:nowrap;flex-shrink:0">📌 Fixar</button>
+            <a href="/admin/webinar/{{ config.id if config else 0 }}/live" target="_blank"
+               style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:6px;padding:7px 12px;font-family:inherit;font-weight:700;font-size:11px;text-decoration:none;white-space:nowrap;flex-shrink:0">👁 Painel Live</a>
+        </div>
+    </div>
+    {% endif %}
 
     {% if is_preview %}
     <!-- Banner PREVIEW com controle de tempo -->
@@ -853,6 +910,8 @@ setInterval(() => {
 window.WEBINAR_ID = {{ config.id if config else 'null' }};
 window.WEBINAR_PREVIEW = {{ 'true' if is_preview else 'false' }};
 window.WEBINAR_IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+window.WEBINAR_IS_REPLAY = {{ 'true' if is_replay else 'false' }};
+window.WEBINAR_SESSION_START = "{{ session_start_iso if session_start_iso else '' }}";
 window.WEBINAR_CONFIG = {
     attendeeBase: {{ config.attendee_count_base if config else 47 }},
     upsellUrl: "{{ config.upsell_url if config else '' }}",

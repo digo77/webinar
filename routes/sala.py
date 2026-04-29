@@ -1,8 +1,22 @@
 import json
 from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, redirect, render_template, request, session, url_for
+import pytz
 from models import LivePresence, Registrant, TimelineEvent, UserChatMessage, WebinarConfig, db
 from services.scheduler import BRT, is_webinar_open
+
+_REPLAY_CUTOFF_HOUR = 21
+_REPLAY_CUTOFF_MINUTE = 15
+
+
+def _fmt_ts_brt(dt):
+    """Converte datetime UTC para string HH:MM no horário de Brasília."""
+    if not dt:
+        return None
+    try:
+        return BRT.fromutc(dt).strftime('%H:%M')
+    except Exception:
+        return None
 
 sala_bp = Blueprint('sala', __name__)
 
@@ -90,16 +104,42 @@ def sala():
 
     # Verifica se o webinário está aberto
     if not registrant.webinar_date or not is_webinar_open(registrant.webinar_date):
-        next_date = registrant.webinar_date
-        if next_date:
-            if next_date.tzinfo is None:
-                next_date = BRT.localize(next_date)
-            return render_template('sala.html',
-                                   waiting=True,
-                                   webinar_date=next_date.isoformat(),
-                                   name=registrant.name)
+        if not registrant.webinar_date:
+            return render_template('sala.html', error='Data do webinário não definida.'), 400
+
+        wd = registrant.webinar_date
+        if wd.tzinfo is None:
+            wd = BRT.localize(wd)
+        now_brt = datetime.now(BRT)
+
+        # Replay: webinar foi hoje, live encerrou, mas ainda dentro da janela até 21h15
+        if wd.date() == now_brt.date() and wd < now_brt:
+            replay_cutoff = wd.replace(
+                hour=_REPLAY_CUTOFF_HOUR, minute=_REPLAY_CUTOFF_MINUTE, second=0, microsecond=0
+            )
+            if now_brt <= replay_cutoff:
+                config = None
+                if registrant.webinar_id:
+                    config = WebinarConfig.query.get(registrant.webinar_id)
+                if not config:
+                    config = WebinarConfig.query.filter_by(is_active=True).first()
+                return render_template('sala.html',
+                                       registrant=registrant,
+                                       config=config,
+                                       is_replay=True,
+                                       is_admin=bool(session.get('admin_logged_in')),
+                                       error=None,
+                                       waiting=False,
+                                       session_start_iso=wd.isoformat())
+
+        config = None
+        if registrant.webinar_id:
+            config = WebinarConfig.query.get(registrant.webinar_id)
         return render_template('sala.html',
-                               error='Data do webinário não definida.'), 400
+                               waiting=True,
+                               webinar_date=wd.isoformat(),
+                               name=registrant.name,
+                               config=config)
 
     # Marca presença
     if not registrant.attended:
@@ -113,10 +153,13 @@ def sala():
     if not config:
         config = WebinarConfig.query.filter_by(is_active=True).first()
 
+    session_start_iso = registrant.webinar_date.isoformat() if registrant.webinar_date else ''
     return render_template('sala.html',
                            registrant=registrant,
                            config=config,
                            is_admin=bool(session.get('admin_logged_in')),
+                           is_replay=False,
+                           session_start_iso=session_start_iso,
                            error=None,
                            waiting=False)
 
@@ -283,7 +326,22 @@ def public_chat():
     if not webinar_id:
         return jsonify({'messages': [], 'pinned': None})
     wid = int(webinar_id)
+
+    # Filtro de sessão: só mensagens desta sessão (evita mensagens de semanas anteriores)
+    session_start_str = request.args.get('session_start', '').strip()
     cutoff = datetime.utcnow() - timedelta(hours=12)
+    if session_start_str:
+        try:
+            ss = datetime.fromisoformat(session_start_str.replace('Z', ''))
+            # Remove timezone info para comparar com UTC naive
+            if hasattr(ss, 'tzinfo') and ss.tzinfo is not None:
+                ss = ss.utctimetuple()
+                ss = datetime(*ss[:6])
+            # Buffer de 30 min antes do início da sessão
+            cutoff = max(cutoff, ss - timedelta(minutes=30))
+        except (ValueError, TypeError):
+            pass
+
     rows = db.session.query(UserChatMessage, Registrant).outerjoin(
         Registrant, UserChatMessage.registrant_id == Registrant.id
     ).filter(
@@ -292,6 +350,7 @@ def public_chat():
         UserChatMessage.id > since_id,
         UserChatMessage.created_at >= cutoff,
     ).order_by(UserChatMessage.created_at).limit(50).all()
+
     pinned_row = db.session.query(UserChatMessage, Registrant).outerjoin(
         Registrant, UserChatMessage.registrant_id == Registrant.id
     ).filter(
@@ -301,13 +360,15 @@ def public_chat():
     pinned = None
     if pinned_row:
         pm, pr = pinned_row
-        pinned = {'id': pm.id, 'name': pr.name if pr else 'Admin', 'message': pm.message}
+        pinned = {'id': pm.id, 'name': pm.sender_name or (pr.name if pr else 'Admin'), 'message': pm.message}
+
     return jsonify({
         'messages': [{
             'id': m.id,
-            'name': r.name if r else 'Participante',
+            'name': m.sender_name or (r.name if r else 'Participante'),
             'message': m.message,
             'admin_reply': m.admin_reply,
+            'ts': _fmt_ts_brt(m.created_at),
         } for m, r in rows],
         'pinned': pinned,
     })
@@ -315,24 +376,50 @@ def public_chat():
 
 @sala_bp.route('/api/my-chat')
 def my_chat():
-    """Retorna as mensagens do próprio usuário (com respostas do admin, se houver)."""
+    """Retorna as mensagens do próprio usuário (com respostas do admin, se houver).
+
+    Aceita:
+      ?since_id=N          — mensagens com id > N (novas mensagens)
+      ?replied_since=ISO   — mensagens com replied_at > ISO (respostas novas, mesmo em msgs antigas)
+    """
     registrant_id = session.get('registrant_id')
     if not registrant_id:
         return jsonify([])
+
     since_id = int(request.args.get('since_id', 0) or 0)
+    replied_since_str = request.args.get('replied_since', '').strip()
 
-    q = UserChatMessage.query.filter_by(registrant_id=registrant_id)
+    # Novas mensagens
+    q_new = UserChatMessage.query.filter_by(registrant_id=registrant_id)
     if since_id:
-        q = q.filter(UserChatMessage.id > since_id)
-    msgs = q.order_by(UserChatMessage.created_at).limit(100).all()
+        q_new = q_new.filter(UserChatMessage.id > since_id)
+    new_msgs = q_new.order_by(UserChatMessage.created_at).limit(100).all()
 
-    return jsonify([
-        {
+    # Respostas novas em mensagens antigas (replied_at > replied_since)
+    reply_msgs = []
+    if replied_since_str:
+        try:
+            replied_since_dt = datetime.fromisoformat(replied_since_str.replace('Z', ''))
+            reply_msgs = UserChatMessage.query.filter_by(registrant_id=registrant_id).filter(
+                UserChatMessage.admin_reply.isnot(None),
+                UserChatMessage.replied_at > replied_since_dt,
+            ).all()
+        except (ValueError, TypeError):
+            pass
+
+    # Combina e deduplica
+    seen = set()
+    result = []
+    for m in new_msgs + reply_msgs:
+        if m.id in seen:
+            continue
+        seen.add(m.id)
+        result.append({
             'id': m.id,
             'message': m.message,
             'created_at': m.created_at.isoformat() if m.created_at else None,
             'admin_reply': m.admin_reply,
             'replied_at': m.replied_at.isoformat() if m.replied_at else None,
-        }
-        for m in msgs
-    ])
+        })
+
+    return jsonify(result)

@@ -277,7 +277,7 @@
                 if (chip) chip.classList.remove('show');
             },
 
-            addMessage(author, message, isUser, eventId) {
+            addMessage(author, message, isUser, eventId, ts) {
                 const box = this.box;
                 if (!box) return;
                 this._attachScrollListener();
@@ -290,11 +290,15 @@
                 const deleteBtn = showDelete
                     ? '<button class="chat-delete-btn" data-event-id="' + eventId + '" title="Excluir comentario" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#dc2626;border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;flex-shrink:0;line-height:1">🗑</button>'
                     : '';
+                const tsHtml = ts
+                    ? '<span style="font-family:Lato,sans-serif;font-size:10px;color:var(--text-muted);margin-left:5px;font-weight:400">' + escHtml(ts) + '</span>'
+                    : '';
                 div.innerHTML =
                     '<div style="display:flex;gap:10px;align-items:flex-start">' +
                         '<div style="width:32px;height:32px;border-radius:50%;background:' + color + ';display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:#fff;flex-shrink:0">' + escHtml(initial) + '</div>' +
                         '<div style="flex:1;min-width:0">' +
                             '<span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--accent-gold)">' + escHtml(author) + '</span>' +
+                            tsHtml +
                             '<p style="font-family:Lato,sans-serif;font-size:13px;color:var(--text-primary);margin:2px 0 0;line-height:1.45;word-wrap:break-word">' + escHtml(message) + '</p>' +
                         '</div>' +
                         deleteBtn +
@@ -588,6 +592,7 @@
         // ── My Chat (mensagens reais do usuário + respostas do admin) ─────────
         MyChat: {
             lastId: 0,
+            lastReplyCheckedAt: null,
             sentLocalIds: new Set(),
             async send(message) {
                 try {
@@ -605,16 +610,22 @@
             },
             async poll() {
                 try {
-                    const resp = await fetch('/api/my-chat?since_id=' + this.lastId);
+                    const now = new Date().toISOString();
+                    let url = '/api/my-chat?since_id=' + this.lastId;
+                    if (this.lastReplyCheckedAt) {
+                        url += '&replied_since=' + encodeURIComponent(this.lastReplyCheckedAt);
+                    }
+                    const resp = await fetch(url);
                     const msgs = await resp.json();
                     for (const m of msgs) {
                         if (m.id > this.lastId) this.lastId = m.id;
-                        // Se o admin respondeu, mostra como mensagem da equipe
+                        // Mostra resposta do admin (funciona mesmo em mensagens antigas)
                         if (m.admin_reply && !this.sentLocalIds.has('reply-' + m.id)) {
                             this.sentLocalIds.add('reply-' + m.id);
                             WebinarEngine.Chat.addAdminReply(m.admin_reply);
                         }
                     }
+                    this.lastReplyCheckedAt = now;
                 } catch (e) {}
             },
             start() {
@@ -631,12 +642,14 @@
             async poll() {
                 try {
                     const wid = window.WEBINAR_ID || '';
-                    const resp = await fetch('/api/public-chat?webinar_id=' + wid + '&since_id=' + this.lastId);
+                    const ss = window.WEBINAR_SESSION_START ? encodeURIComponent(window.WEBINAR_SESSION_START) : '';
+                    const ssParam = ss ? '&session_start=' + ss : '';
+                    const resp = await fetch('/api/public-chat?webinar_id=' + wid + '&since_id=' + this.lastId + ssParam);
                     const data = await resp.json();
                     // Novas mensagens aprovadas
                     for (const m of (data.messages || [])) {
                         if (m.id > this.lastId) this.lastId = m.id;
-                        WebinarEngine.Chat.addMessage(m.name || 'Participante', m.message || '', false);
+                        WebinarEngine.Chat.addMessage(m.name || 'Participante', m.message || '', false, null, m.ts || null);
                         if (m.admin_reply) {
                             setTimeout(function() {
                                 WebinarEngine.Chat.addAdminReply(m.admin_reply);
@@ -746,6 +759,43 @@
             const fn = document.exitFullscreen || document.webkitExitFullscreen;
             if (fn) fn.call(document);
         }
+    };
+
+    // ── Admin: enviar mensagem no chat como "Equipe" ──────────────────────────
+    window.adminSendChat = async function () {
+        const input = document.getElementById('admin-chat-input');
+        if (!input) return;
+        const msg = input.value.trim();
+        if (!msg) return;
+        input.value = '';
+        input.disabled = true;
+        try {
+            const resp = await fetch('/admin/api/webinar/' + window.WEBINAR_ID + '/admin-chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: msg })
+            });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            // Mostra imediatamente no próprio chat sem esperar o poll
+            WebinarEngine.Chat.addMessage('Equipe', msg, false);
+        } catch (err) {
+            alert('Erro ao enviar: ' + err.message);
+            input.value = msg;
+        } finally {
+            input.disabled = false;
+            input.focus();
+        }
+    };
+
+    // ── Admin: fixar mensagem personalizada ──────────────────────────────────
+    window.adminPinPrompt = function () {
+        const msg = prompt('Mensagem para fixar no topo do chat:');
+        if (!msg || !msg.trim()) return;
+        fetch('/admin/api/create-pinned/' + window.WEBINAR_ID, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: msg.trim() })
+        }).catch(function () {});
     };
 
     // Admin: deletar comentario da timeline direto na sala

@@ -761,6 +761,27 @@ def pin_chat(msg_id):
     return jsonify({'ok': True})
 
 
+@admin_bp.route('/api/webinar/<int:webinar_id>/admin-chat', methods=['POST'])
+@login_required
+def admin_send_chat(webinar_id):
+    """Admin posta mensagem no chat público como 'Equipe'."""
+    WebinarConfig.query.get_or_404(webinar_id)
+    data = request.get_json(silent=True) or {}
+    message = (data.get('message') or '').strip()
+    if not message:
+        return jsonify({'error': 'empty'}), 400
+    msg = UserChatMessage(
+        registrant_id=None,
+        webinar_id=webinar_id,
+        message=message,
+        status='approved',
+        sender_name='Equipe',
+    )
+    db.session.add(msg)
+    db.session.commit()
+    return jsonify({'ok': True, 'id': msg.id})
+
+
 @admin_bp.route('/api/create-pinned/<int:webinar_id>', methods=['POST'])
 @login_required
 def create_pinned(webinar_id):

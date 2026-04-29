@@ -108,4 +108,5 @@ class UserChatMessage(db.Model):
     status = db.Column(db.Text, default='pending')  # pending | approved | rejected | simulated
     video_timestamp = db.Column(db.Integer, nullable=True)
     is_pinned = db.Column(db.Boolean, default=False)
+    sender_name = db.Column(db.Text)  # quando admin posta como "Equipe" (registrant_id=None)
     registrant = db.relationship('Registrant', backref='user_chat')
