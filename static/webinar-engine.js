@@ -68,6 +68,7 @@
             // Pre-popula chat com mensagens de aquecimento + background contínuo
             this.PreloadChat.run();
             this.BackgroundChat.start();
+            if (window.WEBINAR_IS_ADMIN) this.AdminInbox.start();
         },
 
         // Timer controlado para modo preview — ignora VTurb, permite seek via botões
@@ -718,6 +719,199 @@
             }
         },
 
+        // ── Admin Inbox Drawer ────────────────────────────────────────────────
+        AdminInbox: {
+            _msgs: [],
+            _pendingCount: 0,
+            _interval: null,
+            _isOpen: false,
+
+            start() {
+                const self = this;
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape' && self._isOpen) self.close();
+                });
+                self.poll();
+                self._interval = setInterval(function () { self.poll(); }, 5000);
+            },
+
+            async poll() {
+                const wid = window.WEBINAR_ID;
+                if (!wid) return;
+                try {
+                    const r = await fetch('/admin/api/webinar/' + wid + '/inbox');
+                    this._msgs = await r.json();
+                    const pending = this._msgs.filter(function (m) { return m.status === 'pending'; }).length;
+                    if (pending !== this._pendingCount) {
+                        this._pendingCount = pending;
+                        this._updateBadge(pending);
+                    }
+                    if (this._isOpen) this._render();
+                } catch (e) {}
+            },
+
+            _updateBadge(count) {
+                const badge = document.getElementById('admin-inbox-badge');
+                const btn = document.getElementById('admin-inbox-btn');
+                if (!badge) return;
+                if (count > 0) {
+                    badge.textContent = count;
+                    badge.style.display = 'inline-flex';
+                    if (btn) btn.style.boxShadow = '0 0 0 2px rgba(239,68,68,.5)';
+                } else {
+                    badge.style.display = 'none';
+                    if (btn) btn.style.boxShadow = '';
+                }
+            },
+
+            open() {
+                const drawer = document.getElementById('admin-drawer');
+                const overlay = document.getElementById('admin-drawer-overlay');
+                if (drawer) drawer.style.right = '0';
+                if (overlay) overlay.style.display = 'block';
+                this._isOpen = true;
+                this._render();
+            },
+
+            close() {
+                const drawer = document.getElementById('admin-drawer');
+                const overlay = document.getElementById('admin-drawer-overlay');
+                if (drawer) drawer.style.right = '-400px';
+                if (overlay) overlay.style.display = 'none';
+                this._isOpen = false;
+            },
+
+            toggle() {
+                if (this._isOpen) this.close(); else this.open();
+            },
+
+            _render() {
+                const container = document.getElementById('admin-drawer-msgs');
+                if (!container) return;
+                if (this._msgs.length === 0) {
+                    container.innerHTML = '<p style="text-align:center;color:var(--text-muted);font-family:Lato,sans-serif;font-size:13px;padding:40px 16px">Nenhuma mensagem ainda.</p>';
+                    return;
+                }
+                // Pendentes primeiro, depois por hora
+                const sorted = this._msgs.slice().sort(function (a, b) {
+                    if (a.status === 'pending' && b.status !== 'pending') return -1;
+                    if (a.status !== 'pending' && b.status === 'pending') return 1;
+                    return 0;
+                });
+                const openReplies = new Set();
+                container.querySelectorAll('.reply-row').forEach(function (el) {
+                    const id = el.closest('[data-msg-id]');
+                    if (id) openReplies.add(id.dataset.msgId);
+                });
+                container.innerHTML = sorted.map(function (m) {
+                    return WebinarEngine.AdminInbox._cardHtml(m);
+                }).join('');
+                // Reabre inputs de resposta que estavam abertos
+                openReplies.forEach(function (id) {
+                    const card = container.querySelector('[data-msg-id="' + id + '"]');
+                    if (card) WebinarEngine.AdminInbox._openReplyInput(card, id);
+                });
+            },
+
+            _cardHtml(m) {
+                const color = avatarColor(m.name || '?');
+                const initial = (m.name || '?').charAt(0).toUpperCase();
+                const statusMap = {
+                    pending: '<span style="background:rgba(245,158,11,.15);color:#d97706;border:1px solid rgba(245,158,11,.3);border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700;font-family:Montserrat,sans-serif">⏳ pendente</span>',
+                    approved: '<span style="background:rgba(34,197,94,.1);color:#16a34a;border:1px solid rgba(34,197,94,.25);border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700;font-family:Montserrat,sans-serif">✓ aprovado</span>',
+                    rejected: '<span style="background:rgba(239,68,68,.1);color:#dc2626;border:1px solid rgba(239,68,68,.25);border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700;font-family:Montserrat,sans-serif">✕ rejeitado</span>',
+                };
+                const replyHtml = m.admin_reply
+                    ? '<div style="margin-top:6px;background:rgba(34,197,94,.07);border-left:2px solid #16a34a;border-radius:0 4px 4px 0;padding:5px 8px;font-family:Lato,sans-serif;font-size:12px;color:var(--text-secondary)"><strong style="color:#16a34a;font-size:11px">↩ Equipe:</strong> ' + escHtml(m.admin_reply) + '</div>'
+                    : '';
+                const approveBtn = m.status === 'pending'
+                    ? '<button class="inbox-btn" data-action="approve" data-id="' + m.id + '" style="background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:#16a34a;border-radius:6px;padding:4px 10px;font-size:11px;font-family:Montserrat,sans-serif;font-weight:700;cursor:pointer">✓ Aprovar</button>'
+                    : '';
+                const rejectBtn = m.status === 'pending'
+                    ? '<button class="inbox-btn" data-action="reject" data-id="' + m.id + '" style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#dc2626;border-radius:6px;padding:4px 10px;font-size:11px;font-family:Montserrat,sans-serif;font-weight:700;cursor:pointer">✕ Rejeitar</button>'
+                    : '';
+                const replyBtn = m.status !== 'rejected'
+                    ? '<button class="inbox-btn" data-action="reply" data-id="' + m.id + '" style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.25);color:#3b82f6;border-radius:6px;padding:4px 10px;font-size:11px;font-family:Montserrat,sans-serif;font-weight:700;cursor:pointer">↩ Responder</button>'
+                    : '';
+                const btns = (approveBtn || replyBtn || rejectBtn)
+                    ? '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">' + approveBtn + replyBtn + rejectBtn + '</div>'
+                    : '';
+                return '<div data-msg-id="' + m.id + '" style="padding:12px;border-bottom:1px solid var(--border);' + (m.status === 'pending' ? 'background:rgba(245,158,11,.03)' : '') + '">' +
+                    '<div style="display:flex;align-items:flex-start;gap:8px">' +
+                        '<div style="width:28px;height:28px;border-radius:50%;background:' + color + ';display:flex;align-items:center;justify-content:center;font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;color:#fff;flex-shrink:0">' + escHtml(initial) + '</div>' +
+                        '<div style="flex:1;min-width:0">' +
+                            '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px">' +
+                                '<span style="font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;color:var(--text-primary)">' + escHtml(m.name) + '</span>' +
+                                (m.ts ? '<span style="font-family:Lato,sans-serif;font-size:10px;color:var(--text-muted)">' + escHtml(m.ts) + '</span>' : '') +
+                                (statusMap[m.status] || '') +
+                            '</div>' +
+                            '<p style="font-family:Lato,sans-serif;font-size:13px;color:var(--text-primary);margin:0;line-height:1.4;word-wrap:break-word">' + escHtml(m.message) + '</p>' +
+                            replyHtml +
+                            btns +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            },
+
+            _openReplyInput(card, msgId) {
+                if (card.querySelector('.reply-row')) return;
+                const row = document.createElement('div');
+                row.className = 'reply-row';
+                row.style.cssText = 'display:flex;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)';
+                row.innerHTML =
+                    '<input type="text" placeholder="Resposta privada..." style="flex:1;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-family:Lato,sans-serif;font-size:12px;color:var(--text-primary);outline:none;-webkit-appearance:none">' +
+                    '<button style="background:var(--accent-gold);color:#fff;border:none;border-radius:6px;padding:7px 12px;font-family:Montserrat,sans-serif;font-weight:700;font-size:11px;cursor:pointer;white-space:nowrap">Enviar</button>';
+                card.querySelector('div > div:last-child').appendChild(row);
+                const input = row.querySelector('input');
+                const sendBtn = row.querySelector('button');
+                input.focus();
+                const send = async function () {
+                    const text = input.value.trim();
+                    if (!text) return;
+                    sendBtn.disabled = true;
+                    try {
+                        await fetch('/admin/api/chat-reply/' + msgId, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ reply: text })
+                        });
+                        await WebinarEngine.AdminInbox.poll();
+                    } catch (e) { sendBtn.disabled = false; }
+                };
+                sendBtn.onclick = send;
+                input.addEventListener('keydown', function (e) { if (e.key === 'Enter') send(); });
+            },
+
+            async _action(action, msgId) {
+                if (action === 'reply') {
+                    const card = document.querySelector('[data-msg-id="' + msgId + '"]');
+                    if (!card) return;
+                    if (card.querySelector('.reply-row')) {
+                        card.querySelector('.reply-row').remove();
+                    } else {
+                        this._openReplyInput(card, msgId);
+                    }
+                    return;
+                }
+                try {
+                    if (action === 'approve') {
+                        await fetch('/admin/api/moderate-chat/' + msgId, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'approve' })
+                        });
+                    } else if (action === 'reject') {
+                        await fetch('/admin/api/moderate-chat/' + msgId, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'reject' })
+                        });
+                    }
+                    await this.poll();
+                } catch (e) {}
+            }
+        },
+
         // ── Tracking ──────────────────────────────────────────────────────────
         Tracking: {
             init() {
@@ -789,6 +983,19 @@
             if (fn) fn.call(document);
         }
     };
+
+    // ── Admin: toggle inbox drawer ────────────────────────────────────────────
+    window.toggleAdminInbox = function () {
+        WebinarEngine.AdminInbox.toggle();
+    };
+
+    // Admin: ações no drawer (aprovar/rejeitar/responder)
+    document.addEventListener('click', function (e) {
+        const btn = e.target.closest('.inbox-btn');
+        if (!btn) return;
+        e.preventDefault();
+        WebinarEngine.AdminInbox._action(btn.dataset.action, btn.dataset.id);
+    });
 
     // ── Admin: enviar mensagem no chat como "Equipe" ──────────────────────────
     window.adminSendChat = async function () {

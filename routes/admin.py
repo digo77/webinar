@@ -699,6 +699,28 @@ def _estimate_video_second(webinar_id):
 # Moderação de chat
 # ---------------------------------------------------------------------------
 
+@admin_bp.route('/api/webinar/<int:webinar_id>/inbox')
+@login_required
+def inbox(webinar_id):
+    """Feed completo de msgs reais (não da Equipe) para o drawer da sala."""
+    cutoff = datetime.utcnow() - timedelta(hours=12)
+    rows = db.session.query(UserChatMessage, Registrant).outerjoin(
+        Registrant, UserChatMessage.registrant_id == Registrant.id
+    ).filter(
+        UserChatMessage.webinar_id == webinar_id,
+        UserChatMessage.registrant_id.isnot(None),
+        UserChatMessage.created_at >= cutoff,
+    ).order_by(UserChatMessage.created_at.desc()).limit(60).all()
+    return jsonify([{
+        'id': m.id,
+        'name': r.name if r else '—',
+        'message': m.message,
+        'status': m.status,
+        'admin_reply': m.admin_reply,
+        'ts': BRT.fromutc(m.created_at).strftime('%H:%M') if m.created_at else None,
+    } for m, r in rows])
+
+
 @admin_bp.route('/api/pending-chat/<int:webinar_id>')
 @login_required
 def pending_chat(webinar_id):
