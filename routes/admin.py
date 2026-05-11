@@ -173,6 +173,7 @@ def webinar_edit(webinar_id):
     webinar.register_button_text = request.form.get('register_button_text', webinar.register_button_text)
     webinar.jit_enabled = bool(request.form.get('jit_enabled'))
     webinar.jit_delay_minutes = int(request.form.get('jit_delay_minutes', webinar.jit_delay_minutes or 15) or 15)
+    webinar.duration_minutes = int(request.form.get('duration_minutes', webinar.duration_minutes or 90) or 90)
 
     db.session.commit()
     return redirect(url_for('admin.webinar_detail', webinar_id=webinar_id))

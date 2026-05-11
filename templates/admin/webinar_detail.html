@@ -187,6 +187,10 @@
                         <label class="adm-label">Base viewers</label>
                         <input class="adm-input" type="number" name="attendee_count_base" value="{{ webinar.attendee_count_base or 47 }}">
                     </div>
+                    <div>
+                        <label class="adm-label">Duração da aula (min) <span style="color:var(--text-muted);font-weight:400">replay ativa após fim + 10min</span></label>
+                        <input class="adm-input" type="number" name="duration_minutes" value="{{ webinar.duration_minutes or 90 }}" min="10" max="480">
+                    </div>
                 </div>
                 <div class="grid-2" style="margin-bottom:14px">
                     <div>

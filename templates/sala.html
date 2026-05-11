@@ -687,47 +687,6 @@ setInterval(() => {
 }, 15000);
 </script>
 
-{% elif is_replay %}
-<!-- ══════════════════════════════════════════════════════════════════════ -->
-<!-- REPLAY                                                                 -->
-<!-- ══════════════════════════════════════════════════════════════════════ -->
-<div style="min-height:100vh;min-height:100dvh;background:var(--bg-primary);display:flex;flex-direction:column">
-    <header style="height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--border);background:var(--bg-secondary);position:sticky;top:0;z-index:50">
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-            <span style="font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">▶ REPLAY</span>
-        </div>
-        <div style="font-family:'Montserrat',sans-serif;font-size:13px;font-weight:600;color:var(--text-primary);text-align:center;flex:1;margin:0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-            {{ config.name if config else 'Webinário' }}
-        </div>
-    </header>
-    <div style="max-width:900px;width:100%;margin:0 auto;padding:24px 16px">
-        <div style="background:rgba(200,130,10,.08);border:1px solid rgba(200,130,10,.25);border-radius:12px;padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px">
-            <span style="font-size:20px;flex-shrink:0">📹</span>
-            <div>
-                <p style="font-family:'Montserrat',sans-serif;font-size:13px;font-weight:700;color:var(--accent-gold);margin-bottom:2px">A aula ao vivo já encerrou</p>
-                <p style="font-family:'Lato',sans-serif;font-size:13px;color:var(--text-secondary);line-height:1.4">Mas deixamos o replay disponível para você assistir agora.</p>
-            </div>
-        </div>
-        {% if config and config.vturb_video_id %}
-        <div style="background:#000;border-radius:12px;overflow:hidden;aspect-ratio:16/9;width:100%">
-            <vturb-smartplayer id="{{ config.vturb_video_id }}" style="display:block;width:100%;height:100%"></vturb-smartplayer>
-            <script>
-            var s=document.createElement("script");
-            s.src="https://scripts.converteai.net/8757ee6b-f7d2-4b00-9669-54aa471b73a9/players/{{ config.vturb_video_id.replace('vid-', '') }}/v4/player.js";
-            s.async=true; document.head.appendChild(s);
-            </script>
-        </div>
-        {% endif %}
-        {% if config and config.upsell_url %}
-        <div style="margin-top:24px;text-align:center">
-            <a href="{{ config.upsell_url }}" target="_blank" class="btn-gold" style="display:inline-block;text-decoration:none;font-family:'Montserrat',sans-serif;font-size:14px;font-weight:800;padding:14px 28px">
-                {{ config.upsell_cta_text or 'Quero aproveitar a oferta' }} →
-            </a>
-        </div>
-        {% endif %}
-    </div>
-</div>
-
 {% else %}
 <!-- ══════════════════════════════════════════════════════════════════════ -->
 <!-- SALA AO VIVO                                                           -->
@@ -779,10 +738,15 @@ setInterval(() => {
 
     <!-- ── Header ──────────────────────────────────────────────────────── -->
     <header class="sala-header">
-        <!-- Badge AO VIVO -->
+        <!-- Badge AO VIVO / REPLAY -->
         <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+            {% if is_replay %}
+            <span style="font-size:14px;line-height:1">📼</span>
+            <span style="font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:var(--accent-gold);text-transform:uppercase;letter-spacing:.06em">REPLAY</span>
+            {% else %}
             <div class="live-dot" style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0"></div>
             <span style="font-family:'Montserrat',sans-serif;font-size:11px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:.06em">AO VIVO</span>
+            {% endif %}
         </div>
         <!-- Nome do webinar -->
         <div style="font-family:'Montserrat',sans-serif;font-size:13px;font-weight:600;color:var(--text-primary);text-align:center;flex:1;margin:0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
@@ -792,7 +756,7 @@ setInterval(() => {
         <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
             <svg width="13" height="13" fill="var(--text-muted)" viewBox="0 0 20 20"><path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/></svg>
             <span id="viewer-count" style="font-family:'Montserrat',sans-serif;font-size:11px;color:var(--text-muted)">{{ config.attendee_count_base if config else 47 }}</span>
-            <span style="font-family:'Montserrat',sans-serif;font-size:11px;color:var(--text-muted)">ao vivo</span>
+            <span style="font-family:'Montserrat',sans-serif;font-size:11px;color:var(--text-muted)">{% if is_replay %}no replay{% else %}ao vivo{% endif %}</span>
         </div>
     </header>
 
@@ -804,10 +768,17 @@ setInterval(() => {
             <div class="video-wrap" id="video-wrap">
 
                 <!-- Badge flutuante (landscape mobile) -->
+                {% if is_replay %}
+                <div class="live-badge-float">
+                    <span style="font-size:12px">📼</span>
+                    <span style="font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.05em">REPLAY</span>
+                </div>
+                {% else %}
                 <div class="live-badge-float">
                     <div class="live-dot" style="width:6px;height:6px;border-radius:50%;background:#ef4444"></div>
                     <span style="font-family:'Montserrat',sans-serif;font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.05em">AO VIVO</span>
                 </div>
+                {% endif %}
 
                 {% if config and config.vturb_video_id %}
                 <vturb-smartplayer id="{{ config.vturb_video_id }}" style="display:block;width:100%;height:100%"></vturb-smartplayer>

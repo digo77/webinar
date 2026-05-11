@@ -60,6 +60,8 @@ class WebinarConfig(db.Model):
     register_presenter_photo_url = db.Column(db.Text)
     register_bullets = db.Column(db.Text)  # JSON array de strings
     register_button_text = db.Column(db.Text)
+    # Duração da aula ao vivo (para ativar replay automaticamente após fim + 10min)
+    duration_minutes = db.Column(db.Integer, default=90)
     # Modo Just in Time
     jit_enabled = db.Column(db.Boolean, default=False)
     jit_delay_minutes = db.Column(db.Integer, default=15)

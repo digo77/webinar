@@ -5,10 +5,6 @@ import pytz
 from models import LivePresence, Poll, PollVote, Reaction, Registrant, TimelineEvent, UserChatMessage, WebinarConfig, db
 from services.scheduler import BRT, is_webinar_open
 
-_REPLAY_CUTOFF_HOUR = 21
-_REPLAY_CUTOFF_MINUTE = 15
-
-
 def _fmt_ts_brt(dt):
     """Converte datetime UTC para string HH:MM no horário de Brasília."""
     if not dt:
@@ -102,63 +98,60 @@ def sala():
         return render_template('sala.html',
                                error='Cadastro não encontrado. Registre-se novamente.'), 404
 
-    # Verifica se o webinário está aberto
-    if not registrant.webinar_date or not is_webinar_open(registrant.webinar_date):
-        if not registrant.webinar_date:
-            return render_template('sala.html', error='Data do webinário não definida.'), 400
+    if not registrant.webinar_date:
+        return render_template('sala.html', error='Data do webinário não definida.'), 400
 
-        wd = registrant.webinar_date
-        if wd.tzinfo is None:
-            wd = BRT.localize(wd)
-        now_brt = datetime.now(BRT)
-
-        # Replay: webinar foi hoje, live encerrou, mas ainda dentro da janela até 21h15
-        if wd.date() == now_brt.date() and wd < now_brt:
-            replay_cutoff = wd.replace(
-                hour=_REPLAY_CUTOFF_HOUR, minute=_REPLAY_CUTOFF_MINUTE, second=0, microsecond=0
-            )
-            if now_brt <= replay_cutoff:
-                config = None
-                if registrant.webinar_id:
-                    config = WebinarConfig.query.get(registrant.webinar_id)
-                if not config:
-                    config = WebinarConfig.query.filter_by(is_active=True).first()
-                return render_template('sala.html',
-                                       registrant=registrant,
-                                       config=config,
-                                       is_replay=True,
-                                       is_admin=bool(session.get('admin_logged_in')),
-                                       error=None,
-                                       waiting=False,
-                                       session_start_iso=wd.isoformat())
-
-        config = None
-        if registrant.webinar_id:
-            config = WebinarConfig.query.get(registrant.webinar_id)
-        return render_template('sala.html',
-                               waiting=True,
-                               webinar_date=wd.isoformat(),
-                               name=registrant.name,
-                               config=config)
-
-    # Marca presença
-    if not registrant.attended:
-        registrant.attended = True
-        db.session.commit()
-
-    # Busca configuração do webinário
+    # Carrega config cedo (necessário para duration_minutes)
     config = None
     if registrant.webinar_id:
         config = WebinarConfig.query.get(registrant.webinar_id)
     if not config:
         config = WebinarConfig.query.filter_by(is_active=True).first()
 
-    session_start_iso = registrant.webinar_date.isoformat() if registrant.webinar_date else ''
+    wd = registrant.webinar_date
+    if wd.tzinfo is None:
+        wd = BRT.localize(wd)
+    now_brt = datetime.now(BRT)
+    is_admin_flag = bool(session.get('admin_logged_in'))
+    is_preview_flag = bool(session.get('is_preview'))
+
+    # ── Replay automático ──────────────────────────────────────────────────
+    # Ativa 10 min após o fim estimado da aula (start + duration_minutes + 10)
+    duration_min = (config.duration_minutes if config and config.duration_minutes else 90)
+    replay_opens_at = wd + timedelta(minutes=duration_min + 10)
+
+    if wd <= now_brt and now_brt >= replay_opens_at:
+        # REPLAY: mesmo template completo, vídeo começa do zero (session_start = agora)
+        return render_template('sala.html',
+                               registrant=registrant,
+                               config=config,
+                               is_replay=True,
+                               is_admin=is_admin_flag,
+                               is_preview=is_preview_flag,
+                               session_start_iso=datetime.utcnow().isoformat(),
+                               error=None,
+                               waiting=False)
+
+    # ── Verifica se ao vivo ────────────────────────────────────────────────
+    if not is_webinar_open(registrant.webinar_date):
+        return render_template('sala.html',
+                               waiting=True,
+                               webinar_date=wd.isoformat(),
+                               name=registrant.name,
+                               config=config)
+
+    # ── Ao vivo ───────────────────────────────────────────────────────────
+    if not registrant.attended:
+        registrant.attended = True
+        db.session.commit()
+
+    session_start_iso = registrant.webinar_date.isoformat()
     return render_template('sala.html',
                            registrant=registrant,
                            config=config,
-                           is_admin=bool(session.get('admin_logged_in')),
+                           is_admin=is_admin_flag,
                            is_replay=False,
+                           is_preview=is_preview_flag,
                            session_start_iso=session_start_iso,
                            error=None,
                            waiting=False)

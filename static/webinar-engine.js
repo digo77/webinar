@@ -538,6 +538,8 @@
                 'Curitiba chegou', 'Brasília tmj', 'Trouxe papel e caneta 📝',
             ],
             run() {
+                // Não dispara saudações em modo replay (vídeo já começa de um ponto avançado)
+                if (window.WEBINAR_IS_REPLAY) return;
                 // Só dispara saudações se o primeiro chat da timeline demora >15s
                 const firstChat = (WebinarEngine.events || []).find(function (e) { return e.event_type === 'chat'; });
                 if (!firstChat || firstChat.trigger_second < 15) return;
